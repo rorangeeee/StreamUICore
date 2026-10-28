@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.local/
+**/bin/
+**/obj/
+*.log
+/StreamUI Core*.exe
+plugins/**/*.dll
+plugins/**/*.deps.json
+release/

@@ -1,0 +1,1 @@
+{"id":"uptime","name":"系统运行时间","version":"1.0.0","assembly":"Uptime.dll","type":"StreamUI.Examples.UptimePlugin","capabilities":["system.uptime"],"settingsPage":"settings.html"}

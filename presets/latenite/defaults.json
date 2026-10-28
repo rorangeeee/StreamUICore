@@ -1,0 +1,204 @@
+{
+  "canvas": {
+    "width": 3840,
+    "height": 2160
+  },
+  "titles": {
+    "english": [
+      "RANDOM PLAY"
+    ],
+    "chinese": [
+      "随便播播"
+    ]
+  },
+  "layoutVersion": 3,
+  "layoutMode": "21:9",
+  "layout": {
+    "order": [
+      "stream-window",
+      "spectrogram-window",
+      "waveform-window",
+      "chat-window",
+      "wordmark-window",
+      "wordmark-blur-window"
+    ],
+    "windows": {
+      "stream-window": {
+        "x": 0,
+        "y": 0.12790666666666664,
+        "width": 1,
+        "height": 0.744310925925926,
+        "angle": 0,
+        "inverted": false
+      },
+      "spectrogram-window": {
+        "x": 0,
+        "y": 0.8722175925925927,
+        "width": 0.7741406249999999,
+        "height": 0.10121064814814815,
+        "angle": 0,
+        "inverted": false
+      },
+      "waveform-window": {
+        "x": 0.7741406249999999,
+        "y": 0.8722175925925927,
+        "width": 0.225859375,
+        "height": 0.10121064814814815,
+        "angle": 0,
+        "inverted": true
+      },
+      "chat-window": {
+        "x": 0.8524849166666667,
+        "y": 0,
+        "width": 0.14751508333333332,
+        "height": 0.12790666666666667,
+        "angle": 0,
+        "inverted": false
+      },
+      "wordmark-window": {
+        "x": 0.5899890625,
+        "y": 0,
+        "width": 0.2450495,
+        "height": 0.12790666666666667,
+        "angle": 0,
+        "inverted": false
+      },
+      "wordmark-blur-window": {
+        "x": 0,
+        "y": 0,
+        "width": 0.5899890625,
+        "height": 0.12790666666666667,
+        "angle": 0,
+        "inverted": false
+      }
+    }
+  },
+  "layoutProfiles": {
+    "21:9": {
+      "order": [
+        "stream-window",
+        "spectrogram-window",
+        "waveform-window",
+        "chat-window",
+        "wordmark-window",
+        "wordmark-blur-window"
+      ],
+      "windows": {
+        "stream-window": {
+          "x": 0,
+          "y": 0.12790666666666664,
+          "width": 1,
+          "height": 0.744310925925926,
+          "angle": 0,
+          "inverted": false
+        },
+        "spectrogram-window": {
+          "x": 0,
+          "y": 0.8722175925925927,
+          "width": 0.7741406249999999,
+          "height": 0.10121064814814815,
+          "angle": 0,
+          "inverted": false
+        },
+        "waveform-window": {
+          "x": 0.7741406249999999,
+          "y": 0.8722175925925927,
+          "width": 0.225859375,
+          "height": 0.10121064814814815,
+          "angle": 0,
+          "inverted": true
+        },
+        "chat-window": {
+          "x": 0.8524849166666667,
+          "y": 0,
+          "width": 0.14751508333333332,
+          "height": 0.12790666666666667,
+          "angle": 0,
+          "inverted": false
+        },
+        "wordmark-window": {
+          "x": 0.5899890625,
+          "y": 0,
+          "width": 0.2450495,
+          "height": 0.12790666666666667,
+          "angle": 0,
+          "inverted": false
+        },
+        "wordmark-blur-window": {
+          "x": 0,
+          "y": 0,
+          "width": 0.5899890625,
+          "height": 0.12790666666666667,
+          "angle": 0,
+          "inverted": false
+        }
+      }
+    },
+    "16:9": {
+      "order": [
+        "stream-window",
+        "spectrogram-window",
+        "waveform-window",
+        "chat-window",
+        "wordmark-window",
+        "wordmark-blur-window"
+      ],
+      "windows": {
+        "stream-window": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1,
+          "angle": 0,
+          "inverted": false
+        },
+        "spectrogram-window": {
+          "x": 0,
+          "y": 0.8722175925925927,
+          "width": 0.7741406249999999,
+          "height": 0.10121064814814815,
+          "angle": 0,
+          "inverted": false
+        },
+        "waveform-window": {
+          "x": 0.7741406249999999,
+          "y": 0.8722175925925927,
+          "width": 0.225859375,
+          "height": 0.10121064814814815,
+          "angle": 0,
+          "inverted": true
+        },
+        "chat-window": {
+          "x": 0.862890625,
+          "y": 0.06388888888888888,
+          "width": 0.13125,
+          "height": 0.8722222222222222,
+          "angle": 0,
+          "inverted": false
+        },
+        "wordmark-window": {
+          "x": 0,
+          "y": 0.13873573240740736,
+          "width": 0.04956197916666667,
+          "height": 0.7225291666666667,
+          "angle": 0,
+          "inverted": false
+        },
+        "wordmark-blur-window": {
+          "x": 0,
+          "y": 0,
+          "width": 0.18489583333333334,
+          "height": 0.12790666666666667,
+          "angle": 0,
+          "inverted": false
+        }
+      }
+    }
+  },
+  "away": {
+    "enabled": false,
+    "text1": "暂停一下，马上回来",
+    "text2": "WE'LL BE RIGHT BACK",
+    "overlayOpacity": 0.9
+  }
+}

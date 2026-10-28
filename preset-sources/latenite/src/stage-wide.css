@@ -1,0 +1,71 @@
+/* The original 21:9 geometry remains in stage.css. This sheet only changes the new overlay. */
+.themebar-decorations { position: absolute; inset: 0; pointer-events: none; }
+.chat-projection, .chat-lift { display: contents; }
+
+#workspace[data-layout-mode="16:9"] .stage-backdrop,
+#workspace[data-layout-mode="16:9"] .stage-dividers,
+#workspace[data-layout-mode="16:9"] #stream-window,
+#workspace[data-layout-mode="16:9"] #spectrogram-window,
+#workspace[data-layout-mode="16:9"] #waveform-window,
+#workspace[data-layout-mode="16:9"] stream-metadata { display: none; }
+
+#workspace[data-layout-mode="16:9"] .title-window { background: transparent; overflow: visible; }
+/* Keep the original fitting size while centering both short and long titles. */
+#workspace[data-layout-mode="16:9"] #bilingual-title { --title-reference-width: 2265.558; --title-centered: 1; }
+#workspace[data-layout-mode="16:9"] .brand-window { background: var(--accent); overflow: hidden; }
+#workspace[data-layout-mode="16:9"] .brand-window[data-inverted="true"] { background: var(--accent-inverse); }
+#workspace[data-layout-mode="16:9"] .brand-window .themebar-decorations {
+  inset: auto; left: 0; top: 0;
+  width: var(--panel-height); height: var(--panel-width);
+  transform-origin: 0 0;
+  transform: translateX(var(--panel-width)) rotate(90deg);
+}
+#workspace[data-layout-mode="16:9"] .brand-wordmark {
+  --wordmark-color: var(--accent-inverse); --wordmark-highlight: #000000;
+  inset: auto; left: 50%; top: 50%;
+  width: calc(var(--panel-height) * .65); height: calc(var(--panel-width) * .42);
+  transform: translate(-50%, -50%) rotate(90deg);
+}
+#workspace[data-layout-mode="16:9"] .brand-window[data-inverted="true"] .themebar-decorations { filter: invert(1); }
+
+/* Hard, unblurred edges keep the existing text/highlight colors readable over video. */
+#workspace[data-layout-mode="16:9"] #bilingual-title { filter: drop-shadow(calc(3px * var(--ui-scale)) calc(3px * var(--ui-scale)) 0 #000) drop-shadow(calc(-1px * var(--ui-scale)) calc(-1px * var(--ui-scale)) 0 rgb(255 255 255 / .65)); }
+#workspace[data-layout-mode="16:9"] stream-marquee {
+  left: 7.6844%;
+  filter: drop-shadow(calc(1px * var(--ui-scale)) calc(1px * var(--ui-scale)) 0 #000);
+}
+#workspace[data-layout-mode="16:9"] .wide-now-playing {
+  position: absolute; inset: auto 0 calc(-20px * var(--ui-scale));
+  width: 100%; height: calc(218.615px * var(--ui-scale)); z-index: 10;
+}
+
+#workspace[data-layout-mode="16:9"] .chat-window {
+  background: transparent; --scope-background: transparent; --scope-foreground: var(--accent);
+  overflow: visible; isolation: auto;
+}
+#workspace[data-layout-mode="16:9"] .chat-projection {
+  display: block; position: absolute; inset: 0;
+  transform-style: preserve-3d;
+  transform: perspective(calc(2200px * var(--ui-scale))) rotateY(-16deg);
+}
+#workspace[data-layout-mode="16:9"] .chat-lift {
+  display: flex; position: relative; width: 100%; height: 100%;
+  border: calc(1.6px * var(--ui-scale)) solid var(--accent);
+  transform-style: preserve-3d;
+  animation: chat-depth-float 10s ease-in-out infinite;
+}
+/* Lift along the panel's 3D normal: no translation along the canvas Y axis. */
+@keyframes chat-depth-float {
+  0%, 100% { transform: translateZ(calc(-9px * var(--ui-scale))) rotateX(-.3deg); }
+  50% { transform: translateZ(calc(9px * var(--ui-scale))) rotateX(.3deg); }
+}
+#workspace[data-layout-mode="16:9"] .chat-window .pane-label {
+  left: calc(-1.6px * var(--ui-scale)); top: auto; bottom: 100%;
+  width: calc(276.2784px * var(--ui-scale)); height: calc(66.994px * var(--ui-scale));
+  transform: none;
+}
+#workspace[data-layout-mode="16:9"] .chat-window chat-terminal { display: none; }
+#workspace[data-layout-mode="16:9"] .chat-window chat-history-terminal { display: block; }
+@media (prefers-reduced-motion: reduce) {
+  #workspace[data-layout-mode="16:9"] .chat-lift { animation: none; }
+}

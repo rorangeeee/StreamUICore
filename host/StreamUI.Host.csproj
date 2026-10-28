@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework><OutputType>WinExe</OutputType><UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings><AssemblyName>StreamUI.Core</AssemblyName><Version>0.3.0</Version>
+    <Product>StreamUI Core</Product><Title>StreamUI Core</Title><ApplicationIcon>Assets/StreamUI.ico</ApplicationIcon><DebugType>embedded</DebugType>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../contracts/StreamUI.Contracts.csproj"/>
+    <Content Include="../dist/**/*" Link="wwwroot/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"/>
+    <EmbeddedResource Include="$(IntermediateOutputPath)web-assets.zip" LogicalName="StreamUI.WebAssets.zip"/>
+  </ItemGroup>
+  <Target Name="BundleWebAssets" BeforeTargets="PrepareResources"><ZipDirectory SourceDirectory="../dist" DestinationFile="$(IntermediateOutputPath)web-assets.zip" Overwrite="true"/></Target>
+</Project>

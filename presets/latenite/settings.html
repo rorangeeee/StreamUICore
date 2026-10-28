@@ -1,0 +1,15 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><script src="/config-appearance.js"></script><link rel="stylesheet" href="/config-theme.css">
+<style>body{margin:0;font:14px system-ui;color:var(--text)}form{display:grid;gap:14px}label{display:grid;gap:6px}textarea,input{font:inherit;background:var(--field);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px}textarea{min-height:56px;resize:vertical}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}button{justify-self:start;background:var(--accent);color:white;border:0;border-radius:8px;padding:9px 20px;font:inherit}output{color:var(--muted)}</style>
+<form><div class="row"><label>英文标题（每行一段）<textarea id="english" required></textarea></label><label>中文标题（每行一段）<textarea id="chinese" required></textarea></label></div><div class="row"><label>暂离文字第一段<input id="away1" required maxlength="500"></label><label>暂离文字第二段<input id="away2" maxlength="500"></label></div><label>暂离遮罩透明度<input id="opacity" type="range" min="0" max="100"></label><button>保存预设参数</button><output id="status"></output></form>
+<script type="module">
+import {createClient,getSceneContext} from '/sdk/streamui.js';
+const client=createClient(),settings=client.settings('preset',getSceneContext().presetId),values=await settings.read();
+const field=id=>document.getElementById(id);
+field('english').value=values.titles.english.join('\n');field('chinese').value=values.titles.chinese.join('\n');
+field('away1').value=values.away.text1;field('away2').value=values.away.text2;field('opacity').value=values.away.overlayOpacity*100;
+document.querySelector('form').onsubmit=async event=>{event.preventDefault();try{
+const english=field('english').value.split('\n').map(s=>s.trim()).filter(Boolean),chinese=field('chinese').value.split('\n').map(s=>s.trim()).filter(Boolean);
+if([english,chinese].some(lines=>lines.length<1||lines.length>12||lines.some(line=>line.length>100)))throw Error('中英文标题各支持 1–12 段，每段最多 100 个字符。');
+await settings.save({...values,titles:{english,chinese},away:{...values.away,text1:field('away1').value,text2:field('away2').value,overlayOpacity:Number(field('opacity').value)/100}});
+field('status').textContent='已保存';}catch(error){field('status').textContent=error.message;}};
+</script></html>

@@ -1,0 +1,1 @@
+{"id":"desktop-audio","name":"桌面音频与频谱","version":"1.0.0","assembly":"DesktopAudio.dll","type":"StreamUI.DesktopAudio.DesktopAudioPlugin","capabilities":["audio.waveform","audio.fft"],"settingsPage":"settings.html"}

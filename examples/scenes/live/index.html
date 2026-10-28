@@ -1,0 +1,15 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>
+html,body{margin:0;width:100%;height:100%;background:transparent;font-family:system-ui,sans-serif}.label{position:absolute;left:36px;bottom:36px;display:flex;align-items:center;gap:13px;background:#ffffffeb;border:1px solid #ffffff50;border-radius:18px;padding:15px 24px;color:#1d1d1f;font-size:28px;box-shadow:0 6px 24px #00000015}.dot{width:10px;height:10px;border-radius:50%;background:#30c361}#chat{position:absolute;right:36px;bottom:36px;width:360px;display:grid;gap:10px}.message{background:#fffefb;border-radius:14px;padding:14px 18px;color:#222;font-size:18px;overflow-wrap:anywhere;box-shadow:0 4px 20px #0001}
+</style></head><body><div class="label"><span class="dot"></span><span id="title">直播</span></div><div id="chat"></div><script type="module">
+import { createClient } from '/sdk/streamui.js';
+const client = createClient();
+const sceneId = new URLSearchParams(location.search).get('streamuiScene') || 'live';
+async function load(){const settings=await client.settings('scene',sceneId).read();document.querySelector('#title').textContent=settings.title || '直播';}
+client.on('scene.settingsChanged',({id})=>{if(id===sceneId)void load();});
+for(const kind of ['message','gift','superchat'])client.on('chat.'+kind,event=>{
+const row=document.createElement('div');row.className='message';
+row.textContent=event.user.name+': '+(kind==='gift'?'送出 '+event.gift.name:event.text);
+const list=document.querySelector('#chat');list.append(row);while(list.children.length>5)list.firstElementChild.remove();
+});
+client.start();void load();addEventListener('pagehide',()=>client.stop());
+</script></body></html>

@@ -1,0 +1,25 @@
+{
+  "name": "streamui-core",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 5373 --strictPort",
+    "bridge": "node scripts/event-bridge.mjs",
+    "build": "tsc --noEmit && vite build",
+    "presets:check": "tsc --noEmit -p preset-sources/latenite/tsconfig.json",
+    "presets:build": "npm run presets:check && vite build --config preset-sources/latenite/vite.config.ts",
+    "plugins:build": "powershell.exe -NoProfile -File scripts/build-plugins.ps1",
+    "host:build": "npm run build && dotnet publish host/StreamUI.Host.csproj -c Release --no-self-contained -o .local/host --configfile host/NuGet.Config",
+    "host:package": "npm run build && powershell.exe -NoProfile -File scripts/package-host.ps1",
+    "host": "powershell.exe -NoProfile -File scripts/start-host.ps1",
+    "host:test": "powershell.exe -NoProfile -File scripts/test-host.ps1",
+    "test": "node --test tests/*.test.mjs",
+    "preview": "vite preview --host 127.0.0.1 --port 4173 --strictPort"
+  },
+  "devDependencies": {
+    "interactjs": "^1.10.28",
+    "typescript": "latest",
+    "vite": "latest"
+  }
+}
