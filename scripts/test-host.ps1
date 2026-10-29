@@ -3,7 +3,7 @@ $ErrorActionPreference = 'Stop'
 $streamUiRoot = Split-Path -Parent $PSScriptRoot
 $streamUiHost = if ($HostExecutable) { [IO.Path]::GetFullPath($HostExecutable) } else { Join-Path $streamUiRoot 'StreamUI Core.exe' }
 $streamUiReport = Join-Path $streamUiRoot '.local\core-self-test.json'
-& dotnet build (Join-Path $streamUiRoot 'examples\plugins\uptime\Uptime.csproj') -c Release --configfile (Join-Path $streamUiRoot 'host\NuGet.Config')
+& dotnet build (Join-Path $streamUiRoot 'tests\fixtures\uptime\Uptime.csproj') -c Release --configfile (Join-Path $streamUiRoot 'host\NuGet.Config')
 if ($LASTEXITCODE -ne 0) { throw 'Test capability plugin build failed.' }
 $streamUiSelfTest = Start-Process -FilePath $streamUiHost -ArgumentList @('--self-test','--report',('"' + $streamUiReport + '"')) -WindowStyle Hidden -PassThru -Wait
 Get-Content -LiteralPath $streamUiReport

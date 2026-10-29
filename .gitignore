@@ -8,3 +8,8 @@ dist/
 plugins/**/*.dll
 plugins/**/*.deps.json
 release/
+/plugins/
+/presets/
+/preset-sources/
+/examples/
+/sdk/native/

@@ -1,1 +1,0 @@
-{"id":"system-media","name":"系统播放曲目","version":"1.0.0","assembly":"SystemMedia.dll","type":"StreamUI.SystemMedia.SystemMediaPlugin","capabilities":["media.now-playing"],"settingsPage":""}

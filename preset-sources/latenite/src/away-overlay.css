@@ -1,6 +1,0 @@
-away-banner { position: absolute; inset: 0; z-index: 100; display: block; overflow: hidden; isolation: isolate; pointer-events: none; }
-away-banner[hidden] { display: none; }
-.away-scrim { position: absolute; inset: 0; z-index: 0; background: #000; opacity: 0; will-change: opacity; }
-.away-band { position: absolute; left: 0; width: 100%; z-index: 1; overflow: hidden; background: var(--accent); transform-origin: left center; will-change: transform; }
-.away-ticker { position: absolute; top: 0; left: 0; display: block; overflow: visible; will-change: transform; }
-.away-message { fill: var(--accent-inverse); font-weight: 400; white-space: pre; font-synthesis: none; }

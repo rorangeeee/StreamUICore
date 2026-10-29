@@ -23,8 +23,11 @@ public sealed class UserContent
         static void Copy(string source, string destination)
         {
             Directory.CreateDirectory(destination);
-            foreach (var file in Directory.EnumerateFiles(source)) File.Copy(file, Path.Combine(destination, Path.GetFileName(file)));
-            foreach (var directory in Directory.EnumerateDirectories(source)) Copy(directory, Path.Combine(destination, Path.GetFileName(directory)));
+            foreach (var file in Directory.EnumerateFiles(source))
+                if ((File.GetAttributes(file) & FileAttributes.ReparsePoint) == 0) File.Copy(file, Path.Combine(destination, Path.GetFileName(file)));
+            foreach (var directory in Directory.EnumerateDirectories(source))
+                if (!new[] { ".git", ".local", "bin", "obj", "node_modules" }.Contains(Path.GetFileName(directory))
+                    && (File.GetAttributes(directory) & FileAttributes.ReparsePoint) == 0) Copy(directory, Path.Combine(destination, Path.GetFileName(directory)));
         }
     }
     private string SettingsPath(string kind, string id)

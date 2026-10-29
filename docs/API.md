@@ -112,7 +112,7 @@ IPluginContext 提供 ID、独立数据目录、只读 JSON 设置，以及 Publ
 插件配置页通过 SDK 保存自己的 JSON，核心不解释字段。原生插件以当前用户权限运行；此机制不提供代码沙箱。
 
 ~~~sh
-dotnet build examples/plugins/uptime/Uptime.csproj -c Release
+powershell.exe -NoProfile -File plugins/desktop-audio/build.ps1 -SdkPath sdk/native
 ~~~
 
 将生成目录中的文件及示例 plugin.json、settings.html 放入用户 plugins/uptime/，在配置页刷新并启用。

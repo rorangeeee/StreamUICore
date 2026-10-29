@@ -75,8 +75,8 @@ try{
  check((await request('/api/scenes/rehearsal/settings')).title==='独立场景标题'&&(await request('/api/scenes/live/settings')).title==='User title','scene parameters remain editable and isolated without authoring a slot');
  check((await readFile(sceneFile,'utf8'))===originalFile,'slot and connection changes never overwrite user scene files');
  const pluginDirectory=path.join(directory,'plugins/uptime');await mkdir(pluginDirectory,{recursive:true});
- await cp(path.resolve('examples/plugins/uptime/bin/Release/net10.0'),pluginDirectory,{recursive:true});
- for(const name of ['plugin.json','settings.html'])await cp(path.resolve('examples/plugins/uptime',name),path.join(pluginDirectory,name));
+ await cp(path.resolve('tests/fixtures/uptime/bin/Release/net10.0'),pluginDirectory,{recursive:true});
+ for(const name of ['plugin.json','settings.html'])await cp(path.resolve('tests/fixtures/uptime',name),path.join(pluginDirectory,name));
  await request('/api/plugins/reload','POST');
  const withPlugin=await request('/api/settings');await request('/api/settings','PUT',{...withPlugin,enabledPlugins:['uptime']});
  await until(async()=>(await request('/api/state')).plugins.some(p=>p.id==='uptime'&&p.state==='running'));

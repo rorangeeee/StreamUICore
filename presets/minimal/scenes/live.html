@@ -1,6 +1,0 @@
-<!doctype html><html lang="zh-CN"><meta charset="utf-8"><style>html,body{margin:0;width:100%;height:100%;background:transparent;font:28px system-ui}#title{position:absolute;bottom:36px;left:36px;border-radius:18px;padding:15px 24px;background:#fffffff0;color:#202024}#chat{position:absolute;right:36px;bottom:36px;width:360px;display:grid;gap:10px}#chat div{background:#fffffff0;color:#222;padding:14px;border-radius:12px;font-size:20px}</style><div id="title"></div><div id="chat"></div><script type="module">
-import{createClient,getSceneContext}from'/sdk/streamui.js';const client=createClient(),id=getSceneContext().presetId;
-async function load(){const values=await client.settings('preset',id).read();document.getElementById('title').textContent=values.title;}
-client.on('preset.settingsChanged',event=>{if(event.id===id)void load();});
-for(const kind of['message','gift','superchat'])client.on('chat.'+kind,event=>{const row=document.createElement('div');row.textContent=event.user.name+': '+(kind==='gift'?'送出 '+event.gift.name:event.text);const chat=document.getElementById('chat');chat.append(row);while(chat.children.length>5)chat.firstElementChild.remove();});
-client.start();void load();addEventListener('pagehide',()=>client.stop());</script></html>

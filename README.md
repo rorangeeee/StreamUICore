@@ -1,70 +1,66 @@
 # StreamUICore
 
-Windows x64 本地直播场景宿主。Core 提供 OBS 连接、弹幕事件、场景协调、预设加载和能力插件接口；场景布局、素材、组件与转场由外置预设实现。
+Windows x64 本地直播场景宿主。Core 提供 OBS、弹幕、场景协调、外置预设、能力插件和版本化 SDK。
 
-**Host 本体不包含任何预设或音频/媒体插件。首次启动不启用预设，不加载场景或预设参数页。**
+**此仓库不携带官方插件或预设源码，也不把它们打进 Host。首次启动没有已安装预设、没有场景、没有音频或曲目抓取能力。** 测试目录中的最小夹具仅供自动验证，不作为扩展安装。
 
-## 运行与安装预设
+## 构建干净的 Core
 
-运行 `StreamUI Core.exe` 后，打开 <http://127.0.0.1:5281/>。OBS 浏览器输出地址为 <http://127.0.0.1:5280/>。
+需要 Windows x64、Node.js 22.18+、.NET 10 SDK。
 
-将他人提供的预设文件夹放到 EXE 旁的 `presets/<id>/`，每个预设必须带 `preset.json`。需要能力插件时，单独安装到 `plugins/<id>/`。这两个目录均不在 Host 本体中。
-
-在「预览」刷新预设列表，选择预设并点击「应用预设」。扫描只读取清单，不会自动启用；只有明确应用后才登记场景、启动所需的已安装插件和加载参数页。选「不启用预设」并应用会清空输出，关闭由预设启动的插件。已有场景通过场景下拉框切换，暂离使用独立的暂离开关。
-
-配置页只调整 OBS、弹幕、插件和预设开放的主播参数。场景定义、画布、素材、转场等固定内容由作者预先做好，不提供场景增删或结构编辑接口。
-
-## 当前独立示例
-
-源码仓库单独放置两个可移出的示例目录，Host 打包不会收进这些目录：
-
-- `presets/minimal/`：不依赖插件的直播、暂离和淡入淡出转场。
-- `presets/latenite/`：3840 × 2160 个人双布局，包含 21:9、16:9 和暂离。双布局共用常驻运行页面，保留弹幕与动画状态。依赖 `desktop-audio` 和 `system-media` 两个外置插件。
-
-LATENITE 的源代码位于 `preset-sources/latenite/`，构建结果直接位于独立预设的 `ui/`。布局、标题及暂离默认值在预设自己的 `defaults.json`，没有 OBS 密码、弹幕 Token 或本机音频设备 ID。要获得与原布局相同的字体效果，需在本机安装 Retro Pixel、405 SS 像素体、Blue Screen Personal Use、JetBrains Mono 等原布局字体；字体未随预设分发。
-
-## 从源码构建
-
-需要 Node.js 22.18+、.NET 10 SDK 和 Windows x64。
-
-```powershell
+~~~powershell
 npm ci
 npm run host:package
-```
+~~~
 
-这只构建 Core，不构建或打包预设及插件。按需单独构建扩展：
+生成独立的 StreamUI Core.exe，以及供第三方插件引用的 sdk/native/StreamUI.Contracts.dll（SDK major 1）。Host 发布包只包含 Host 和运行说明；原生 SDK、插件和预设独立分发。
 
-```powershell
-npm run presets:build
-npm run plugins:build
-powershell.exe -NoProfile -File scripts/package-extras.ps1
-```
+运行后配置页为 http://127.0.0.1:5281/，OBS 输出为 http://127.0.0.1:5280/。首次启动为空输出。
 
-`scripts/package-release.ps1` 生成只含 Host EXE 和运行说明的发布 ZIP，并校验没有预设。`scripts/package-extras.ps1` 分别生成 `latenite.preset.zip`、`minimal.preset.zip`、`optional-capability-plugins.zip`。
+## 从三个独立仓库安装官方扩展
 
-## 数据与接口
+在 Core 目录运行：
 
-默认参数保存在 `%LOCALAPPDATA%/StreamUICore`；EXE 旁已存在 `.local/core-data` 时使用该本地数据目录。`npm run host` 使用工程自己的 `.local/core-data`。预设始终默认从 EXE 旁 `presets/` 扫描。
+~~~powershell
+git clone https://github.com/rorangeeee/StreamUI-Plugin-DesktopAudio.git plugins/desktop-audio
+git clone https://github.com/rorangeeee/StreamUI-Plugin-SystemMedia.git plugins/system-media
+git clone https://github.com/rorangeeee/StreamUI-Preset-Latenite.git presets/latenite
 
-- `core-settings.json`：本机连接偏好、已选预设、场景选择和插件偏好。
-- `preset-settings/<id>.json`：主播的参数覆盖，和作者的预设文件分离；读参数时与作者默认值合并。
-- `scene-settings/`：兼容独立场景参数。
-- `plugins/`、`plugin-settings/`、`plugin-data/`：安装的能力插件及其本机状态。
+powershell.exe -NoProfile -File plugins/desktop-audio/build.ps1 -SdkPath sdk/native
+powershell.exe -NoProfile -File plugins/system-media/build.ps1 -SdkPath sdk/native
 
-EXE 旁 `plugins/` 的已编译插件首次运行时复制到用户插件目录，已有用户插件不会被覆盖，也不会自动启动。更新已安装插件时请替换用户目录中的相应插件文件。
+npm --prefix presets/latenite ci
+npm --prefix presets/latenite run build
+~~~
 
-可用 `--data-dir`、`--presets-dir`、`--plugins-dir` 指定独立目录，用 `--obs-port`、`--config-port` 指定端口。两个 HTTP 端口仅监听本机回环地址。
+两个插件只引用独立 SDK DLL，不引用 Core 源码。预设只使用运行时 /sdk/streamui.js 与 SDK 1 类型定义，自带前端构建配置。
 
-预设格式见 [docs/PRESETS.md](docs/PRESETS.md)，SDK、转场与能力插件接口见 [docs/API.md](docs/API.md)。
+在配置页「预览」刷新预设列表，选择 LATENITE 并应用。扫描不会自动启用，也不会加载预设参数页或启动其插件。可切换 21:9、16:9，并用暂离开关进入或返回。配置页只负责主播参数，场景与转场由预设作者预先定义。
 
-## 验证
+LATENITE 保留 3840 × 2160 双布局、常驻运行页面、弹幕历史、像素转场、暂离、频谱、示波器和曲目显示。字体不随预设分发；获得原外观需安装相同本机字体，详见预设仓库。
 
-```powershell
+## 数据和更新
+
+预设从 EXE 旁 presets/<id>/ 扫描，插件放在 plugins/<id>/。这两个安装目录被本仓库 Git 忽略，各自保留独立 Git 历史。
+
+本机数据默认在 %LOCALAPPDATA%/StreamUICore；EXE 旁存在 .local/core-data 时使用它。npm run host 使用工程的 .local/core-data。
+
+- core-settings.json：连接偏好、所选预设/场景、暂离和插件偏好。
+- preset-settings/：主播参数覆盖，与预设作者默认值分离。
+- plugin-settings/、plugin-data/：插件配置和持久化数据。
+
+首次发现 EXE 旁已编译插件时复制到本机插件目录；不覆盖已有安装，不启动插件。复制时排除 Git、构建目录、依赖缓存和符号链接。更新已安装插件应替换用户目录对应文件。
+
+可用 --data-dir、--presets-dir、--plugins-dir、--obs-port、--config-port 指定隔离实例。HTTP 仅监听回环地址。本轮支持独立 Git 仓库的手动 clone 与确定化构建，尚未实现配置页 Git URL 安装器。
+
+## 开发与验证
+
+~~~powershell
 npm test
 npm run host:test
 node tests/presets-integration.mjs 'StreamUI Core.exe'
-```
+~~~
 
-测试使用独立用户目录、本机模拟 OBS/弹幕及随机或测试端口，不操作真实 OBS。预设集成测试需要先单独构建预设和插件。
+Core 的自动验证仅用合成预设和探针插件，不依赖官方扩展。预设自身的适配测试位于独立预设仓库，运行 npm test。
 
-独立项目来源见 [docs/ORIGIN.md](docs/ORIGIN.md)。
+[原生插件 SDK](docs/SDK.md) · [预设格式](docs/PRESETS.md) · [运行接口](docs/API.md) · [项目来源](docs/ORIGIN.md)

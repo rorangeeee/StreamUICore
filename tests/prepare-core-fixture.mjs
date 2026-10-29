@@ -4,8 +4,8 @@ import path from 'node:path';
 const directory = process.argv[2];
 if (!directory) throw new Error('Expected an isolated test user directory.');
 await mkdir(directory, { recursive: true });
-await cp(path.resolve('examples/scenes'), path.join(directory, 'scenes'), { recursive: true });
-await cp(path.resolve('examples/scenes/live'), path.join(directory, 'scenes/rehearsal'), { recursive: true });
+await cp(path.resolve('tests/fixtures/scenes'), path.join(directory, 'scenes'), { recursive: true });
+await cp(path.resolve('tests/fixtures/scenes/live'), path.join(directory, 'scenes/rehearsal'), { recursive: true });
 const slot = (id, name, obsScene, settingsPage = '') => ({
   id, name, obsScene, entry: `scenes/${id}/index.html`, width: 1920, height: 1080,
   transition: `scenes/${id}/fade.js`, settingsPage,

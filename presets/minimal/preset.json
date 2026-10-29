@@ -1,9 +1,0 @@
-{
-  "formatVersion": 1, "sdkVersion": 1, "id": "minimal", "name": "简洁直播示例", "version": "1.0.0",
-  "description": "不依赖能力插件的直播与暂离示例。", "defaultScene": "live", "awayScene": "away",
-  "settingsPage": "settings.html", "defaults": "defaults.json", "plugins": [],
-  "scenes": [
-    {"id":"live","name":"直播","entry":"scenes/live.html","width":1920,"height":1080,"transition":"transitions/fade.js"},
-    {"id":"away","name":"暂离","entry":"scenes/away.html","width":1920,"height":1080,"transition":"transitions/fade.js"}
-  ]
-}
