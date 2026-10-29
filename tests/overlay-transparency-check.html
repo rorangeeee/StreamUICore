@@ -1,0 +1,14 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8">
+<title>StreamUICore 透明输出验收</title>
+<style>
+:root{font:16px system-ui;color-scheme:normal;background:#eceff4;color:#18202a}body{margin:0;padding:22px}h1{font-size:23px;margin:0 0 10px}p{line-height:1.5}#capture{position:relative;width:100%;aspect-ratio:16/9;background:repeating-conic-gradient(#246ac4 0 25%,#f2b62d 0 50%) 0/48px 48px;overflow:hidden;border:2px solid #18202a;box-sizing:border-box}iframe{position:absolute;inset:0;width:100%;height:100%;border:0;color-scheme:normal;background:transparent}
+</style>
+<h1>透明输出验收</h1>
+<p>蓝黄棋盘格模拟位于浏览器源下方的显示器捕获。21:9 中央挖空及 16:9 无组件区域必须透出棋盘格。</p>
+<div id="capture"><iframe id="output" title="Core 浏览器输出"></iframe></div>
+<p>本页只显示输出，不修改场景、连接或 OBS。可在 URL 的 output 参数指定本机测试输出地址。</p>
+<script>
+const target=new URL(new URLSearchParams(location.search).get('output')||'http://127.0.0.1:5280/');
+if(!['127.0.0.1','localhost'].includes(target.hostname)||target.protocol!=='http:')throw Error('仅支持本机 HTTP 验收地址。');
+document.getElementById('output').src=target.href;
+</script></html>

@@ -19,7 +19,8 @@
 
 :root {
   font-family: 'JetBrains Mono', 'Source Han Sans SC', 'Source Han Sans CN', '思源黑体', monospace;
-  color-scheme: dark;
+  /* Match the Core iframe's canvas scheme so Chromium preserves alpha. */
+  color-scheme: normal;
   color: var(--accent);
   background: transparent;
   font-synthesis: none;

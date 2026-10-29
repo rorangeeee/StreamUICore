@@ -34,6 +34,8 @@
 
 场景页面通过固定地址 `/sdk/streamui.js` 使用 Core SDK。`getSceneContext()` 返回当前的 `presetId`、全局 `sceneId` 和预览标记。清单的 `view` 是作者自定义的字符串，随场景元数据出现在公开状态中，Core 不解释其含义。
 
+透明输出页面的根元素使用 `color-scheme: normal`，并显式设置 `html, body { background: transparent }`。Core 的输出 iframe 使用普通画布配色；若场景根元素声明 `color-scheme: dark`，Chromium 会为配色不匹配的嵌入页面绘制不透明背景，SVG 挖空也无法透到下层视频。原生深色控件可只在参数设置页或局部控件容器使用深色配色，不要对透明输出根页面启用。规则依据：[CSS Color Adjustment §2.2](https://www.w3.org/TR/css-color-adjust-1/#color-scheme-effect)。
+
 ```js
 import { createClient, getSceneContext } from '/sdk/streamui.js';
 const client = createClient();

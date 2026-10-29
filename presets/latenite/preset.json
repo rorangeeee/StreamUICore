@@ -3,7 +3,7 @@
   "sdkVersion": 1,
   "id": "latenite",
   "name": "LATENITE 多场景",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "3840 × 2160 双布局，保留弹幕、字标、音频可视化、暂离条带与像素转场。",
   "defaultScene": "ultrawide",
   "awayScene": "away",
