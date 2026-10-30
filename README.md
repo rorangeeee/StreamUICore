@@ -1,66 +1,71 @@
 # StreamUICore
 
-Windows x64 本地直播场景宿主。Core 提供 OBS、弹幕、场景协调、外置预设、能力插件和版本化 SDK。
+Windows x64 本地场景宿主。Core 负责通用场景播放、独立预览、扩展装载和参数保存。OBS 联动、弹幕、音频和曲目读取分别由插件提供，暂离由预设场景实现。首次启动没有场景或已启用扩展。
 
-**此仓库不携带官方插件或预设源码，也不把它们打进 Host。首次启动没有已安装预设、没有场景、没有音频或曲目抓取能力。** 测试目录中的最小夹具仅供自动验证，不作为扩展安装。
+## 构建与安装
 
-## 构建干净的 Core
-
-需要 Windows x64、Node.js 22.18+、.NET 10 SDK。
+需要 Node.js 22.18+、.NET 10 SDK、Windows x64。
 
 ~~~powershell
 npm ci
 npm run host:package
 ~~~
 
-生成独立的 StreamUI Core.exe，以及供第三方插件引用的 sdk/native/StreamUI.Contracts.dll（SDK major 1）。Host 发布包只包含 Host 和运行说明；原生 SDK、插件和预设独立分发。
+生成 StreamUI Core.exe 和独立原生 SDK（sdk/native，major 1）。配置页 http://127.0.0.1:5281/，输出 http://127.0.0.1:5280/。浏览器 SDK 为 2。EXE 不含预设或插件。
 
-运行后配置页为 http://127.0.0.1:5281/，OBS 输出为 http://127.0.0.1:5280/。首次启动为空输出。
-
-## 从三个独立仓库安装官方扩展
-
-在 Core 目录运行：
+在 Core 目录安装源码：
 
 ~~~powershell
 git clone https://github.com/rorangeeee/StreamUI-Plugin-DesktopAudio.git plugins/desktop-audio
 git clone https://github.com/rorangeeee/StreamUI-Plugin-SystemMedia.git plugins/system-media
+git clone https://github.com/rorangeeee/StreamUI-Plugin-ObsScenes.git plugins/obs-scenes
+git clone https://github.com/rorangeeee/StreamUI-Plugin-Laplace.git plugins/laplace
 git clone https://github.com/rorangeeee/StreamUI-Preset-Latenite.git presets/latenite
-
 powershell.exe -NoProfile -File plugins/desktop-audio/build.ps1 -SdkPath sdk/native
 powershell.exe -NoProfile -File plugins/system-media/build.ps1 -SdkPath sdk/native
-
+powershell.exe -NoProfile -File plugins/obs-scenes/build.ps1 -SdkPath sdk/native
+powershell.exe -NoProfile -File plugins/laplace/build.ps1 -SdkPath sdk/native
 npm --prefix presets/latenite ci
 npm --prefix presets/latenite run build
 ~~~
 
-两个插件只引用独立 SDK DLL，不引用 Core 源码。预设只使用运行时 /sdk/streamui.js 与 SDK 1 类型定义，自带前端构建配置。
+启动 Core，选择并启用 LATENITE。字体由本机提供，具体要求见预设 README。
 
-在配置页「预览」刷新预设列表，选择 LATENITE 并应用。扫描不会自动启用，也不会加载预设参数页或启动其插件。可切换 21:9、16:9，并用暂离开关进入或返回。配置页只负责主播参数，场景与转场由预设作者预先定义。
+## 配置与预览
 
-LATENITE 保留 3840 × 2160 双布局、常驻运行页面、弹幕历史、像素转场、暂离、频谱、示波器和曲目显示。字体不随预设分发；获得原外观需安装相同本机字体，详见预设仓库。
+侧栏提供预览、场景配置和插件配置。场景与插件自行提供配置面板；Core 没有固定的标题、暂离、OBS 或弹幕参数。参数改后自动保存。
 
-## 数据和更新
+预览切场景、重播动效和暂离开关只作用于当前配置页的独立播放会话，不改变实际输出。OBS 输出切换也不会带动预览。文字等持久化参数是共享的，修改后立即更新使用它的画面。
 
-预设从 EXE 旁 presets/<id>/ 扫描，插件放在 plugins/<id>/。这两个安装目录被本仓库 Git 忽略，各自保留独立 Git 历史。
+LATENITE 在每个场景的配置页提供 OBS 场景名字段。留空不参与自动联动；只有非空且匹配的场景会响应实际 OBS 切换并播放动效。只填一个场景同样适用。OBS 插件只报告事件，匹配和播放由预设组件完成。
 
-本机数据默认在 %LOCALAPPDATA%/StreamUICore；EXE 旁存在 .local/core-data 时使用它。npm run host 使用工程的 .local/core-data。
+暂离是 LATENITE 的一个普通场景，文字在该场景配置中编辑。侧栏暂离开关由预设提供，用于预览；实际输出进入暂离时，使用绑定到该场景的 OBS 场景名。
 
-- core-settings.json：连接偏好、所选预设/场景、暂离和插件偏好。
-- preset-settings/：主播参数覆盖，与预设作者默认值分离。
-- plugin-settings/、plugin-data/：插件配置和持久化数据。
+OBS 地址和密码位于 OBS 场景联动插件。Event Bridge 地址、端口、Token、本地桥接开关位于 LAPLACE 插件。服务启停和 Windows 自启保留在托盘。
 
-首次发现 EXE 旁已编译插件时复制到本机插件目录；不覆盖已有安装，不启动插件。复制时排除 Git、构建目录、依赖缓存和符号链接。更新已安装插件应替换用户目录对应文件。
+## 数据与更新
 
-可用 --data-dir、--presets-dir、--plugins-dir、--obs-port、--config-port 指定隔离实例。HTTP 仅监听回环地址。本轮支持独立 Git 仓库的手动 clone 与确定化构建，尚未实现配置页 Git URL 安装器。
+插件直接加载 plugins/<id>/，预设直接读取 presets/<id>/，安装仓库就是编辑目录。仓库包含源码和构建配置，产物由用户或 agent 本地生成，不提交 Git。更新原生插件前退出 Core，合并 Git 更新、构建后再启动。参数与持久化数据保存在独立用户目录。
 
-## 开发与验证
+默认数据目录为 %LOCALAPPDATA%/StreamUICore；EXE 旁有 .local/core-data 时使用它。可用 --data-dir、--presets-dir、--plugins-dir、--obs-port、--config-port 指定隔离实例。
+
+Core 0.5 使用浏览器 SDK 2，旧 SDK 1 预设需要升级。旧 core-settings.json 会备份为 core-settings.v1.json；两个新插件按各自声明导入旧连接配置。Core 停止时，可迁移旧 LATENITE 标题、绑定与暂离参数：
+
+~~~powershell
+npm --prefix presets/latenite run migrate -- <Core数据目录>
+~~~
+
+旧用户目录中的插件副本保留，可迁到安装目录，或用 --plugins-dir 继续使用原目录。
+
+## 验证
 
 ~~~powershell
 npm test
 npm run host:test
 node tests/presets-integration.mjs 'StreamUI Core.exe'
+npm run extensions:check -- plugins/desktop-audio plugins/system-media plugins/obs-scenes plugins/laplace presets/latenite
 ~~~
 
-Core 的自动验证仅用合成预设和探针插件，不依赖官方扩展。预设自身的适配测试位于独立预设仓库，运行 npm test。
+Core 测试使用合成场景和探针插件。协议、绑定和迁移测试位于相应扩展仓库。
 
-[原生插件 SDK](docs/SDK.md) · [预设格式](docs/PRESETS.md) · [运行接口](docs/API.md) · [项目来源](docs/ORIGIN.md)
+[原生 SDK](docs/SDK.md) · [预设格式](docs/PRESETS.md) · [浏览器 API](docs/API.md) · [源码仓库约定](docs/REPOSITORIES.md) · [项目来源](docs/ORIGIN.md)

@@ -1,67 +1,53 @@
-# 外置预设格式 v1
+# 外置预设格式 v1 / 浏览器 SDK 2
 
-一个预设就是可以单独复制、压缩和分享的文件夹。Host 仅从 `presets/<id>/preset.json` 发现它；EXE 内没有默认预设。ZIP 是文件夹的分发形式，使用者解压到 `presets/` 即可，当前不实现联网下载或在线商店。
+预设以独立源码仓库分发，构建后由 Core 从 presets/<id>/preset.json 发现。Core 不携带场景，也不自动执行扩展构建脚本。
 
-## 清单
-
-```json
+~~~json
 {
-  "formatVersion": 1,
-  "sdkVersion": 1,
-  "id": "my-preset",
-  "name": "我的直播间",
-  "version": "1.0.0",
-  "description": "说明",
-  "defaultScene": "live",
-  "awayScene": "away",
-  "defaults": "defaults.json",
-  "settingsPage": "settings.html",
-  "plugins": [],
-  "scenes": [
-    {"id":"live","name":"直播","entry":"scenes/live.html","width":1920,"height":1080,"transition":"transitions/fade.js"},
-    {"id":"away","name":"暂离","entry":"scenes/away.html","width":1920,"height":1080,"transition":"transitions/fade.js"}
-  ]
+  "formatVersion":1,"sdkVersion":2,
+  "id":"my-preset","name":"我的直播间","version":"1.0.0",
+  "defaultScene":"live","defaults":"defaults.json","sidebarPage":"sidebar.html",
+  "scenes":[
+    {"id":"live","name":"直播","entry":"ui/index.html","settingsPage":"settings/live.html","defaults":"defaults/live.json","width":1920,"height":1080,"view":"live","runtimeGroup":"overlay"},
+    {"id":"pause","name":"暂离","entry":"ui/index.html","settingsPage":"settings/pause.html","defaults":"defaults/pause.json","width":1920,"height":1080,"view":"pause","runtimeGroup":"overlay"}
+  ],
+  "plugins":[],
+  "build":{"kind":"vite","output":"ui"}
 }
-```
+~~~
 
-目录名须与清单 `id` 相同。预设与局部场景 ID 使用 1–30 位小写字母、数字和横线。内部场景 ID 为 `<preset-id>__<scene-id>`，因此不同预设都叫 `live` 时仍可独立保存状态。版本使用 `1.0.0` 这样的数字版本。
+目录名与清单 id 相同，预设和局部场景 ID 使用 1–30 位小写字母、数字和横线。全局场景 ID 为 <preset-id>__<scene-id>。所有资源是仓库内的相对路径，不允许绝对路径、URL、.. 或符号链接。settingsPage、defaults、sidebarPage 可省略；构建后的入口和声明的文件必须存在。
 
-所有入口均相对于本预设目录，不能使用绝对路径、`..`、URL、符号链接或跨目录资源路径。HTML、转场 JS、默认 JSON、参数页必须存在；当前支持 `formatVersion=1` 和 `sdkVersion=1`。无效预设显示不可用，不会影响其他预设或启动其代码。
+## 场景参数与侧栏
 
-可选 `plugins` 项形如 `{ "id": "desktop-audio", "minimumVersion": "1.0.0", "required": true }`。应用时检查已安装插件及版本；必需插件在明确应用后启动，停用预设后释放。用户自己显式启用的插件保持其独立偏好。扫描清单不会加载本机 DLL。
+每个场景通过自己的 defaults 定义作者参数，由 settingsPage 提供配置页面。用户覆盖保存在 scene-settings/<global-id>.json。根 defaults 和 settingsPage 可用于跨场景共享参数，与场景 scope 分开。
 
-## 场景与参数
+Core 不定义标题、颜色、OBS 场景名或暂离字段。参数页使用 getSceneContext().sceneId 读取该场景设置，并 PATCH 具体改动。保存只保留与当前作者默认值不同的覆盖，避免一个标题修改固定其余默认布局。
 
-场景页面通过固定地址 `/sdk/streamui.js` 使用 Core SDK。`getSceneContext()` 返回当前的 `presetId`、全局 `sceneId` 和预览标记。清单的 `view` 是作者自定义的字符串，随场景元数据出现在公开状态中，Core 不解释其含义。
+view 是预设作者的标记，Core 不解释它。暂离与普通场景没有宿主层区别；预设可用 sidebarPage 提供侧栏预览控件，使用继承当前 previewId 的 SDK 客户端选择场景。Core 没有 awayScene 或暂离专用 API。
 
-透明输出页面的根元素使用 `color-scheme: normal`，并显式设置 `html, body { background: transparent }`。Core 的输出 iframe 使用普通画布配色；若场景根元素声明 `color-scheme: dark`，Chromium 会为配色不匹配的嵌入页面绘制不透明背景，SVG 挖空也无法透到下层视频。原生深色控件可只在参数设置页或局部控件容器使用深色配色，不要对透明输出根页面启用。规则依据：[CSS Color Adjustment §2.2](https://www.w3.org/TR/css-color-adjust-1/#color-scheme-effect)。
+## 能力组件
 
-```js
-import { createClient, getSceneContext } from '/sdk/streamui.js';
-const client = createClient();
-const context = getSceneContext();
-const settings = client.settings('preset', context.presetId);
-const values = await settings.read();
-client.on('preset.settingsChanged', ({ id }) => {
-  if (id === context.presetId) void settings.read().then(applyParameters);
-});
-client.start();
-```
+plugins 声明独立能力依赖，例如：
 
-在配置端口的参数页中可以 `settings.save(object)`。作者的 `defaults.json` 始终不被修改；用户覆盖保存在独立数据目录的 `preset-settings/<id>.json`。对象递归合并，数组和基本值整体覆盖。参数页只在预设启用后出现在主播配置中。
+~~~json
+{"id":"obs-scenes","minimumVersion":"1.0.0","required":true,"repository":"https://github.com/rorangeeee/StreamUI-Plugin-ObsScenes.git","ref":"main"}
+~~~
 
-OBS 密码、弹幕 Token、设备 ID 等本机偏好不属于预设默认值。示例中的 OBS 场景名只是可修改的绑定；应用前可编辑清单 `scenes[].obsScene`，或继续从预览手动切换。
+启用时检查并启动必需插件，扫描不会启动代码。OBS 插件只提供连接和事件。LATENITE 在各场景参数中声明 obsSceneName，其组件监听 plugin.obs-scenes.scene-changed；只有非空且匹配的场景才切换并播放动效。未匹配的事件不改变输出，也不播放动效。预览组件不执行实际 OBS 联动。
 
-## 转场与常驻运行组
+其他组件按需订阅 laplace、desktop-audio、system-media 数据。连接参数保存在插件 scope，视觉与业务逻辑不进入 Core。
 
-每个场景可指定 `transition`，模块导出 `play({container,from,to,covered,signal})`。动画完全遮住输出时调用 `covered()`，完成时返回，取消时释放动画；最长 15 秒。普通场景交接加载新 iframe 并释放旧页面。
+## 常驻运行与动画
 
-同一预设的多个视图可以设置相同的 `runtimeGroup` 和 `entry`，并使用相同画布尺寸。此时 Core 复用同一 iframe，通过 `scene.leave` / `scene.enter` 更新场景上下文，不重建页面。作者可在页面内部根据 `view` 或全局状态切布局并播放连续动画。`getSceneContext().sceneId` 在进入新视图后会更新。该机制可保留弹幕历史、音频连接与动画时钟。
+相同 runtimeGroup、entry 和画布尺寸的视图复用 iframe，通过 scene.leave / scene.enter 更新上下文，保留弹幕历史与动画时钟。scene.playback 包含通用 id、startedAt、animate，预设自行绘制连续动效。
 
-LATENITE 使用该机制让 21:9、16:9 与暂离共用原有运行页面，像素转场由预设内部绘制。Core 的公开 `obs.transition` 包含转场 ID 和 `startedAt`，用于跟随 OBS 开始时钟；帧是否精确对齐仍需在实际 OBS 环境验收。
+普通场景可指定 transition 模块，导出 play({container,from,to,covered,signal})。动画遮住画面后调用 covered()，完成时返回，取消时释放动画；最长 15 秒。
 
-## 安装、使用与更新
+透明输出根页面使用 color-scheme:normal，并显式设置 html,body 背景透明。深色配色只用于配置面板或局部控件。
 
-复制预设文件夹后在预览刷新列表、明确应用。刷新不会更换正在显示的内容；停用后输出为空并卸载预设参数面板。新用户始终没有已选预设；已经明确选用的预设和场景在重启后恢复。预设被移走或依赖缺失时，重启会退回空输出并显示错误。
+## 更新
 
-更新时替换作者的预设文件夹，用户数据目录保持独立。修改清单中的场景定义后重新应用或重启以登记新结构。预设文件是可执行前端代码，本机能力插件是独立 .NET 扩展，接口不提供本机代码沙箱。
+源码仓库结构见 REPOSITORIES.md。在安装仓库中修改、构建；修改清单后刷新并重新应用，修改源码后构建并刷新预览和 OBS。用户参数与作者文件分开。
+
+Core 0.5 使用浏览器 SDK 2。旧预设不能再依赖 Core 的 obs、chat、away 字段，需改为自己的能力组件与场景实现。

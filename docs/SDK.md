@@ -16,5 +16,9 @@ Host 与插件共享同一份 Contracts 程序集，由 PluginLoadContext 优先
 
 - https://github.com/rorangeeee/StreamUI-Plugin-DesktopAudio
 - https://github.com/rorangeeee/StreamUI-Plugin-SystemMedia
+- https://github.com/rorangeeee/StreamUI-Plugin-ObsScenes
+- https://github.com/rorangeeee/StreamUI-Plugin-Laplace
 
-插件安装目录的 .git、bin、obj、node_modules、.local 不被复制到运行数据目录。插件以当前用户权限运行；SDK 版本校验不构成代码沙箱。
+Core 0.5 的浏览器 SDK 为 major 2，见 [API.md](API.md)。这与本页的原生 Contracts SDK major 1 分开版本化；原生接口保持不变。
+
+插件直接在安装仓库中构建和加载，不再复制到运行数据目录。源码、构建配置必须进入 Git，DLL、deps.json、bin、obj 等产物不提交，详见 [REPOSITORIES.md](REPOSITORIES.md)。插件以当前用户权限运行；SDK 版本校验不构成代码沙箱。

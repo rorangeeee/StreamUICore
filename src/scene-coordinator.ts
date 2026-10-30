@@ -1,9 +1,9 @@
-import type { SceneSlot } from './sdk/contracts.ts';
+import type { SceneSlot, ScenePlayback } from './sdk/contracts.ts';
 export interface SceneDriver<T> {
   load(scene: SceneSlot, signal: AbortSignal): Promise<T>;
   transition(from: SceneSlot | null, to: SceneSlot, covered: () => void, signal: AbortSignal): Promise<void>;
-  show(next: T, previous: T | null, scene: SceneSlot): void;
-  update?(value: T, previous: SceneSlot, scene: SceneSlot): void;
+  show(next: T, previous: T | null, scene: SceneSlot, playback?: ScenePlayback | null): void;
+  update?(value: T, previous: SceneSlot, scene: SceneSlot, playback?: ScenePlayback | null): void;
   remove(value: T): void;
 }
 export class SceneCoordinator<T> {
@@ -12,8 +12,8 @@ export class SceneCoordinator<T> {
   private requested = '';
   private driver: SceneDriver<T>;
   constructor(driver: SceneDriver<T>) { this.driver = driver; }
-  async activate(scene: SceneSlot): Promise<void> {
-    const signature = JSON.stringify(scene);
+  async activate(scene: SceneSlot, playback?: ScenePlayback | null): Promise<void> {
+    const signature = JSON.stringify([scene, playback?.id]);
     if (signature === this.requested) return;
     this.requested = signature;
     this.controller?.abort();
@@ -22,7 +22,7 @@ export class SceneCoordinator<T> {
     try {
       if (this.current && scene.runtimeGroup && scene.runtimeGroup === this.current.scene.runtimeGroup
           && scene.entry === this.current.scene.entry && scene.width === this.current.scene.width && scene.height === this.current.scene.height && this.driver.update) {
-        this.driver.update(this.current.value, this.current.scene, scene);
+        this.driver.update(this.current.value, this.current.scene, scene, playback);
         this.current.scene = scene;
         return;
       }
@@ -32,11 +32,11 @@ export class SceneCoordinator<T> {
         if (committed || controller.signal.aborted || next === null) return;
         committed = true;
         const previous = this.current;
-        this.driver.show(next, previous?.value ?? null, scene);
+        this.driver.show(next, previous?.value ?? null, scene, playback);
         this.current = { scene, value: next };
         if (previous) this.driver.remove(previous.value);
       };
-      if (this.current && scene.transition) await this.driver.transition(this.current.scene, scene, covered, controller.signal);
+      if (this.current && scene.transition && (playback === undefined || playback?.animate)) await this.driver.transition(this.current.scene, scene, covered, controller.signal);
       else covered();
       controller.signal.throwIfAborted();
       if (!committed) throw new Error('转场未调用 covered()。');

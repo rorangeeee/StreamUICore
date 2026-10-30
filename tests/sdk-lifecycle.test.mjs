@@ -11,7 +11,7 @@ test('stopping a client closes every capability stream and prevents reconnect ti
   globalThis.WebSocket = Socket;
   globalThis.window = { removeEventListener() {} };
   try {
-    const client = new StreamUIClient('http://127.0.0.1:5280/');
+    const client = new StreamUIClient('http://127.0.0.1:5280/', null);
     const off = client.binary('uptime', 'raw', () => {});
     client.binary('another', 'frames', () => {});
     assert.equal(sockets.length, 2);

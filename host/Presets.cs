@@ -5,11 +5,11 @@ using System.Text.RegularExpressions;
 namespace StreamUI;
 
 public record PresetScene(string Id, string Name, string Entry, int Width = 1920, int Height = 1080,
-    string Transition = "", string SettingsPage = "", string View = "", string RuntimeGroup = "", string ObsScene = "");
+    string Transition = "", string SettingsPage = "", string View = "", string RuntimeGroup = "", string Defaults = "");
 public record PresetDependency(string Id, string MinimumVersion = "1.0.0", bool Required = true);
 public record PresetManifest(int FormatVersion, int SdkVersion, string Id, string Name, string Version,
-    string Description, PresetScene[] Scenes, string DefaultScene, string? AwayScene = null,
-    string SettingsPage = "", string Defaults = "", PresetDependency[]? Plugins = null);
+    string Description, PresetScene[] Scenes, string DefaultScene,
+    string SettingsPage = "", string Defaults = "", PresetDependency[]? Plugins = null, string SidebarPage = "");
 public record PresetInfo(string Id, string Name, string Version, string Description, int SceneCount,
     PresetDependency[] Plugins, bool Available, string? Error);
 
@@ -60,23 +60,23 @@ public sealed class PresetCatalog
                 CheckTree(directory);
                 var manifest = JsonSerializer.Deserialize<PresetManifest>(File.ReadAllText(Path.Combine(directory, "preset.json")), SettingsStore.Json)
                     ?? throw new ArgumentException("预设清单为空。");
-                if (manifest.FormatVersion != 1 || manifest.SdkVersion != 1) throw new ArgumentException("预设格式或 SDK 版本不兼容。");
+                if (manifest.FormatVersion != 1 || manifest.SdkVersion != 2) throw new ArgumentException("预设格式或浏览器 SDK 版本不兼容。");
                 if (manifest.Id != id || string.IsNullOrWhiteSpace(manifest.Name) || !Version.TryParse(manifest.Version, out _)
                     || manifest.Scenes is null || manifest.Scenes.Length is < 1 or > 100 || manifest.SettingsPage is null || manifest.Defaults is null)
                     throw new ArgumentException("预设清单无效。");
                 if (manifest.Scenes.Any(s => s is null || !Slug(s.Id) || string.IsNullOrWhiteSpace(s.Name)
-                    || s.Entry is null || s.Transition is null || s.SettingsPage is null || s.RuntimeGroup is null || s.View is null || s.ObsScene is null))
+                    || s.Entry is null || s.Transition is null || s.SettingsPage is null || s.RuntimeGroup is null || s.View is null || s.Defaults is null))
                     throw new ArgumentException("预设场景无效。");
-                if (manifest.Scenes.Select(s => s.Id).Distinct().Count() != manifest.Scenes.Length
-                    || !manifest.Scenes.Any(s => s.Id == manifest.DefaultScene)
-                    || manifest.AwayScene is not null && !manifest.Scenes.Any(s => s.Id == manifest.AwayScene))
-                    throw new ArgumentException("预设默认场景、暂离场景或场景 ID 无效。");
+                if (manifest.Scenes.Select(s => s.Id).Distinct().Count() != manifest.Scenes.Length || !manifest.Scenes.Any(s => s.Id == manifest.DefaultScene))
+                    throw new ArgumentException("预设默认场景或场景 ID 无效。");
                 foreach (var scene in manifest.Scenes)
                 {
                     FileEntry(directory, scene.Entry, ".html"); FileEntry(directory, scene.Transition, ".js", true); FileEntry(directory, scene.SettingsPage, ".html", true);
+                    FileEntry(directory, scene.Defaults, ".json", true);
                     if (scene.RuntimeGroup != "" && !Slug(scene.RuntimeGroup)) throw new ArgumentException("场景运行组无效。");
                 }
                 FileEntry(directory, manifest.SettingsPage, ".html", true); FileEntry(directory, manifest.Defaults, ".json", true);
+                FileEntry(directory, manifest.SidebarPage, ".html", true);
                 if (manifest.Defaults != "") Object(File.ReadAllText(Path.Combine(directory, manifest.Defaults)));
                 var dependencies = manifest.Plugins ?? [];
                 if (dependencies.Any(p => p is null || !HostSettings.IsId(p.Id) || !Version.TryParse(p.MinimumVersion, out _))
@@ -96,13 +96,14 @@ public sealed class PresetCatalog
         if (id is null || !manifests.TryGetValue(id, out var manifest)) return null;
         return new { manifest.Id, manifest.Name, manifest.Version, manifest.Description,
             settingsPage = manifest.SettingsPage == "" ? "" : $"presets/{id}/{manifest.SettingsPage}",
+            sidebarPage = manifest.SidebarPage == "" ? "" : $"presets/{id}/{manifest.SidebarPage}",
             requiredPlugins = Required(id) };
     }
     public string[] Required(string? id) => id is null || !manifests.TryGetValue(id, out var manifest) ? [] : (manifest.Plugins ?? []).Where(p => p.Required).Select(p => p.Id).ToArray();
     public string[] EffectivePlugins(HostSettings settings) => settings.EnabledPlugins.Concat(Required(settings.ActivePresetId)).Distinct().ToArray();
     public HostSettings Apply(HostSettings current, string? id, PluginInfo[] plugins)
     {
-        if (id is null) return current with { ActivePresetId = null, Scenes = [], SelectedSceneId = null, Away = new(false, null) };
+        if (id is null) return current with { ActivePresetId = null, Scenes = [], SelectedSceneId = null };
         var manifest = Get(id);
         foreach (var dependency in (manifest.Plugins ?? []).Where(p => p.Required))
         {
@@ -116,33 +117,33 @@ public sealed class PresetCatalog
     {
         ActivePresetId = manifest.Id,
         Scenes = manifest.Scenes.Select(s => new SceneSlot(SceneId(manifest.Id, s.Id), s.Name, $"presets/{manifest.Id}/{s.Entry}",
-            s.ObsScene, s.Width, s.Height, s.Transition == "" ? "" : $"presets/{manifest.Id}/{s.Transition}",
-            s.SettingsPage == "" ? "" : $"presets/{manifest.Id}/{s.SettingsPage}")
+            s.Width, s.Height, s.Transition == "" ? "" : $"presets/{manifest.Id}/{s.Transition}",
+            s.SettingsPage == "" ? "" : $"presets/{manifest.Id}/{s.SettingsPage}", s.Defaults == "" ? "" : $"presets/{manifest.Id}/{s.Defaults}")
             { PresetId = manifest.Id, SceneId = s.Id, View = s.View, RuntimeGroup = s.RuntimeGroup == "" ? "" : SceneId(manifest.Id, s.RuntimeGroup) }).ToArray(),
-        SelectedSceneId = SceneId(manifest.Id, manifest.DefaultScene),
-        Away = new(false, manifest.AwayScene is null ? null : SceneId(manifest.Id, manifest.AwayScene))
+        SelectedSceneId = SceneId(manifest.Id, manifest.DefaultScene)
     };
-    private static JsonObject Object(string json) => JsonNode.Parse(json) as JsonObject ?? throw new ArgumentException("预设参数应为 JSON 对象。");
-    private static void Merge(JsonObject target, JsonObject source)
+    private static JsonObject Object(string json) => JsonSettings.Object(json);
+    private JsonObject Defaults(string id)
     {
-        foreach (var (key, value) in source)
-            if (target[key] is JsonObject before && value is JsonObject after) Merge(before, after);
-            else target[key] = value?.DeepClone();
+        var manifest = Get(id);
+        return manifest.Defaults == "" ? new JsonObject() : Object(File.ReadAllText(Path.Combine(Root, id, manifest.Defaults)));
     }
     public JsonObject ReadSettings(string id)
     {
-        var manifest = Get(id);
-        var defaults = manifest.Defaults == "" ? new JsonObject() : Object(File.ReadAllText(Path.Combine(Root, id, manifest.Defaults)));
+        var defaults = Defaults(id);
         var file = Path.Combine(data, "preset-settings", id + ".json");
-        if (File.Exists(file)) Merge(defaults, Object(File.ReadAllText(file)));
+        if (File.Exists(file)) JsonSettings.Merge(defaults, Object(File.ReadAllText(file)));
         return defaults;
     }
-    public async Task SaveSettings(string id, JsonElement value)
+    public async Task SaveSettings(string id, JsonElement value, bool patch = false)
     {
-        Get(id);
-        if (value.ValueKind != JsonValueKind.Object) throw new ArgumentException("预设参数应为 JSON 对象。");
+        var defaults = Defaults(id);
+        var submitted = JsonSettings.Object(value);
         var directory = Path.Combine(data, "preset-settings"); Directory.CreateDirectory(directory);
         var file = Path.Combine(directory, id + ".json");
-        await File.WriteAllTextAsync(file + ".tmp", value.GetRawText()); File.Move(file + ".tmp", file, true);
+        var values = patch && File.Exists(file) ? Object(File.ReadAllText(file)) : new JsonObject();
+        JsonSettings.Merge(values, submitted);
+        var overrides = JsonSettings.Overrides(values, defaults);
+        await File.WriteAllTextAsync(file + ".tmp", overrides.ToJsonString(SettingsStore.Json)); File.Move(file + ".tmp", file, true);
     }
 }

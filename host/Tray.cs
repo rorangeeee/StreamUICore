@@ -11,7 +11,6 @@ internal sealed class Tray : ApplicationContext
     private readonly ToolStripMenuItem stop = new("停止服务");
     private readonly ToolStripMenuItem restart = new("重启服务");
     private readonly ToolStripMenuItem startup = new("登录 Windows 时启动") { CheckOnClick = true };
-    private readonly ToolStripMenuItem away = new("暂离模式");
     private readonly RegisteredWaitHandle activationWait;
     private bool busy;
 
@@ -24,8 +23,6 @@ internal sealed class Tray : ApplicationContext
         menu.Items.Add(status); menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("打开配置页面", null, (_, _) => _ = Run(host.Start, host.ConfigUrl));
         menu.Items.Add("打开 OBS 画面", null, (_, _) => _ = Run(host.Start, host.ObsUrl));
-        away.Click += (_, _) => _ = Run(() => host.SetAway(!host.AwayEnabled));
-        menu.Items.Add(away);
         menu.Items.Add(new ToolStripSeparator());
         start.Click += (_, _) => _ = Run(host.Start);
         stop.Click += (_, _) => _ = Run(host.Stop);
@@ -68,8 +65,6 @@ internal sealed class Tray : ApplicationContext
         stop.Enabled = !busy && host.State == ServiceState.Running;
         restart.Enabled = !busy && host.State == ServiceState.Running;
         startup.Checked = WindowsStartup.Enabled;
-        away.Checked = host.AwayEnabled;
-        away.Enabled = !busy && host.State == ServiceState.Running && host.AwayAvailable;
     }
     private async Task Run(Func<Task> action, string? open = null)
     {

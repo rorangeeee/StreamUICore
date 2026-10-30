@@ -8,8 +8,8 @@ using StreamUI.Contracts;
 
 namespace StreamUI;
 
-public record PluginManifest(string Id, string Name, string Version, string Assembly, string Type, string[] Capabilities, string SettingsPage = "");
-public record PluginInfo(string Id, string Name, string Version, string[] Capabilities, string SettingsPage, bool Enabled, string State, string? Error);
+public record PluginManifest(string Id, string Name, string Version, string Assembly, string Type, string[] Capabilities, string SettingsPage = "", string LegacySettingsKey = "");
+public record PluginInfo(string Id, string Name, string Version, string[] Capabilities, string SettingsPage, bool Enabled, string State, string? Error, IReadOnlyDictionary<string, JsonElement> Topics);
 
 public sealed class PluginHost : IAsyncDisposable
 {
@@ -33,6 +33,7 @@ public sealed class PluginHost : IAsyncDisposable
         public PluginLoadContext? Loader;
         public CancellationTokenSource? Lifetime;
         public readonly ConcurrentDictionary<string, SocketHub> Binary = new();
+        public readonly ConcurrentDictionary<string, JsonElement> Topics = new();
     }
     private sealed class Context(PluginHost owner, Entry entry, JsonElement settings, string dataDirectory) : IPluginContext
     {
@@ -42,7 +43,10 @@ public sealed class PluginHost : IAsyncDisposable
         public void Publish(string topic, object? data)
         {
             ValidateTopic(topic);
-            if (entry.Lifetime?.IsCancellationRequested == false) owner.Publish?.Invoke("plugin." + Id + "." + topic, data);
+            if (entry.Lifetime?.IsCancellationRequested == false) {
+                entry.Topics[topic] = JsonSerializer.SerializeToElement(data, SettingsStore.Json);
+                owner.Publish?.Invoke("plugin." + Id + "." + topic, data);
+            }
         }
         public void PublishBinary(string topic, ReadOnlyMemory<byte> data)
         {
@@ -56,7 +60,7 @@ public sealed class PluginHost : IAsyncDisposable
     public event Action? Changed;
     public PluginHost(UserContent content) { this.content = content; }
     public PluginInfo[] Status => entries.Values.OrderBy(e => e.Manifest.Name).Select(e => new PluginInfo(
-        e.Manifest.Id, e.Manifest.Name, e.Manifest.Version, e.Manifest.Capabilities, e.Manifest.SettingsPage, e.Enabled, e.State, e.Error)).ToArray();
+        e.Manifest.Id, e.Manifest.Name, e.Manifest.Version, e.Manifest.Capabilities, e.Manifest.SettingsPage, e.Enabled, e.State, e.Error, new Dictionary<string, JsonElement>(e.Topics))).ToArray();
     public bool Contains(string id) => entries.ContainsKey(id);
     private static void ValidateTopic(string topic)
     {
@@ -85,6 +89,12 @@ public sealed class PluginHost : IAsyncDisposable
                 ValidateFile(manifest.Assembly, ".dll");
                 if (manifest.SettingsPage.Length > 0) ValidateFile(manifest.SettingsPage, ".html");
                 entries[id] = new(manifest) { Enabled = enabled.Contains(id) };
+                var legacy = Path.Combine(content.Root, "core-settings.v1.json");
+                if (!string.IsNullOrEmpty(manifest.LegacySettingsKey) && File.Exists(legacy)
+                    && !File.Exists(Path.Combine(content.Root, "plugin-settings", id + ".json"))) {
+                    using var prior = JsonDocument.Parse(await File.ReadAllTextAsync(legacy));
+                    if (prior.RootElement.TryGetProperty(manifest.LegacySettingsKey, out var values)) await content.SaveSettings("plugin", id, values);
+                }
             }
             catch (Exception error) when (error is JsonException or ArgumentException or IOException)
             {
@@ -125,7 +135,7 @@ public sealed class PluginHost : IAsyncDisposable
             catch (Exception error) { entry.Error = error.GetBaseException().Message; }
         }
         entry.Instance = null; entry.Lifetime?.Dispose(); entry.Lifetime = null;
-        entry.Binary.Clear(); entry.Loader?.Unload(); entry.Loader = null;
+        entry.Binary.Clear(); entry.Topics.Clear(); entry.Loader?.Unload(); entry.Loader = null;
         entry.State = "disabled";
     }
     public async Task Restart(string id)

@@ -1,151 +1,81 @@
-# StreamUI 接口 v1
+# 浏览器 SDK 与运行接口 v2
 
-## 场景槽位
+Core 提供通用场景、播放会话、参数保存和插件事件传输，不提供 OBS、弹幕或暂离业务模型。原生 Contracts SDK 仍为 major 1。
 
-每个槽位包含 id、name、entry、obsScene、width、height、transition、settingsPage。ID 使用小写字母、数字、横线或下划线；入口、转场和设置页均是用户目录下 scenes/ 内的相对路径。
-
-这些结构由开发者在启动前写入用户目录的 core-settings.json。scenes 是固定槽位列表，selectedSceneId 是初始选择，away.sceneId 是固定暂离场景。运行时配置页和 HTTP 接口不创建、删除或修改槽位；主播仅切换现有场景及调整场景自定义参数。
-
-entry 为 HTML，transition 为可选的 JavaScript 模块，settingsPage 为可选的 HTML 配置面板。核心不保存标题、颜色、组件树或几何数据。
-
-场景播放时，入口 URL 附带 streamuiScene 和 streamuiPreview 参数。设置页也附带 streamuiScene；插件设置页附带 streamuiPlugin。
-
-## 浏览器客户端
+## 客户端与播放会话
 
 ~~~js
-import { createClient, getSceneContext } from '/sdk/streamui.js';
+import {createClient, getSceneContext} from '/sdk/streamui.js';
 const client = createClient();
 const context = getSceneContext();
-const off = client.on('chat.message', data => {});
 client.onState(state => {});
+client.on('plugin.my-plugin.status', value => {});
 client.start();
-// 释放订阅或离开页面：
-off();
-client.stop();
 ~~~
 
-客户端维护一条事件 WebSocket，自动重连。onState 在已有快照时立即调用订阅者；新连接获得当前快照。公开快照不包含 OBS 密码、弹幕 Token 或插件私有设置。
+场景和扩展参数页通过 URL 获得 sceneId、presetId、pluginId、preview 和 previewId。createClient 自动继承当前 previewId；普通输出没有 previewId。也可显式 createClient({baseUrl, previewId})。
 
-外置预设格式和独立打包边界见 PRESETS.md。Host 新用户默认没有场景或已选预设；只有明确应用清单后才登记它的固定场景。
+公开状态包含 apiVersion:2、scenes、scene、preset、plugins、preview、outputUrl、configUrl、startup。scene 包含 activeId、previousId、revision、playback；playback 为 null 或 {id,startedAt,animate}。这里没有 obs、chat 或 away 字段。
 
-事件：
+client.selectScene(id, {animate, cue, startedAt}) 选择该客户端所属会话的场景；animate 默认为 true。预览客户端只改变预览。外部能力事件可提供稳定 cue，多个输出页面对同一事件的请求只执行一次；startedAt 让场景动效加入同一个时钟。晚到的旧 cue 不会覆盖较新的播放。
 
-- chat.message、chat.gift、chat.superchat：标准化弹幕事件。
-- chat.status、obs.status：连接状态。
-- obs.sceneChanged：实际输出场景名称。
-- scene.changed：当前槽位及暂离状态。
-- away.changed：暂离开关。
-- scene.enter、scene.leave：播放器交接场景时发出的生命周期事件。
-- scene.settingsChanged：场景独立配置发生变化。
-- preset.settingsChanged：预设共享参数发生变化。
-- plugin.<id>.<topic>：能力插件发布的事件。
+client.on('scene.enter', callback) 和 scene.leave 是播放器发送的页面生命周期事件。同一 runtimeGroup 的视图复用 iframe，也会收到新的 scene.enter 和场景上下文。client.stop() 关闭事件与二进制订阅。
 
-on 返回取消订阅函数。scene.enter / scene.leave 来自同源播放器父页面。预加载期间客户端可接收数据，进入/退出时机由生命周期事件区分。
+## 预览
 
-client.selectScene(id) 手动选择槽位并退出暂离。
-client.setAway(enabled) 进入或退出暂离。
-client.settings('scene', id).read() 读取场景配置。
-client.settings('scene', id).save(object) 在配置端口保存该场景配置。
-client.settings('plugin', id) 访问插件配置，只在配置端口可用。
-client.settings('preset', id) 读取预设默认值与用户覆盖合并后的参数，只在配置端口可保存。
-client.binary(pluginId, topic, callback) 订阅插件二进制帧，返回关闭订阅函数。
+配置端口 POST /api/previews 创建 {id,state}。GET /api/state?preview=<id>、WebSocket /ws/events?preview=<id> 和 POST /api/actions/scene?preview=<id> 使用该会话。DELETE /api/previews/<id> 释放它。预览是临时状态，不写入实际输出的选择；独立配置页的预览互不影响。
 
-## 弹幕结构
+输出页面使用 /?preview=<id> 作为预览播放器地址，普通 / 始终表示实际输出。场景中的 SDK 自动使用父播放器传入的 streamuiPreview。能力组件必须根据 getSceneContext().preview 判断是否执行真实自动联动；预览不响应外部 OBS 切换。
 
-~~~json
-{
-  "id": "bilibili:message:123",
-  "kind": "message",
-  "platform": "bilibili",
-  "timestamp": 1700000000000,
-  "user": { "id": "1", "name": "观众", "level": 12, "medalName": null, "medalLevel": null },
-  "text": "你好",
-  "gift": null,
-  "payment": null
-}
-~~~
+预览隔离播放状态；持久化参数仍由相应场景或插件共享。
 
-礼物的 gift 包含 name 和 count；SC 的 payment 包含标准化 amount 和 currency。金额未知时为 null。时间统一为毫秒；接口不生成展示文案或规定排队和打字效果。
-
-## 转场
+## 参数
 
 ~~~js
-export async function play({ container, from, to, covered, signal }) {
-  // 在 container 中绘制覆盖动画。
-  // 完全遮住画面时调用 covered()，播放器此时交接两个场景。
-  // 动画结束后返回。
-}
+import {createClient, getSceneContext, createAutoSave} from '/sdk/streamui.js';
+const settings = createClient().settings('scene', getSceneContext().sceneId);
+const values = await settings.read();
+const save = createAutoSave(patch => settings.patch(patch), {
+  onStatus: status => {},
+  onError: error => {},
+});
+input.oninput = () => { if (input.checkValidity()) save.update({myText:input.value}); };
+input.onchange = () => { if (input.checkValidity()) save.update({myText:input.value}, true); };
+addEventListener('pagehide', () => void save.flush().catch(() => {}));
 ~~~
 
-初次加载直接进入场景。已选择的目标未变时不会重建页面。新切换会取消尚未完成的旧切换；转场需响应 AbortSignal 并释放动画。covered() 只提交一次；模块完成前未调用它会报告错误并保留原场景。执行上限 15 秒。
+字段由扩展定义。支持 scene、preset、plugin 三种 scope。read 返回作者默认值与用户覆盖的合并结果；patch 只递归合并提供的字段，数组整体替换，null 是明确值；save / PUT 替换整个覆盖对象。场景和预设保存时剔除与作者默认值相同的字段，因此修改一个文字不会固定其余默认布局。
 
-这里协调的是网页场景交接。OBS 视频源之间的覆盖时序由 OBS 转场承担。
+createAutoSave 合并约 300 ms 的连续输入，第二参数 true 立即提交。写入按顺序完成，失败保留待保存字段，下次 update 或 flush 可重试。不要在单项编辑时发送初始化时读到的完整快照。
 
-## 暂离
+配置页从扩展的 settingsPage 加载 HTML，自动适应其内容高度。场景、预设和插件分别收到对应 ID。preset.sidebarPage 可提供侧栏控件，并获得当前配置页的 previewId；Core 不解释控件含义。
 
-暂离是对显示槽位的临时覆盖，保留正常选中的槽位。返回时显示该槽位。暂离期间 OBS 的匹配场景变化会更新正常槽位，返回后与实际 OBS 输出一致。手动切换场景会退出暂离。
+## 插件能力
 
-暂离页面、倒计时、提示文字及其他表现由用户场景实现。
+插件发布的 JSON 事件名为 plugin.<id>.<topic>。plugins[].topics 包含每个 topic 的最新公开值，便于新页面取得初始状态。私有设置不会出现在公开状态。
 
-## 原生能力插件
+client.binary(pluginId, topic, callback) 订阅插件定义的二进制帧，返回关闭订阅函数。事件和二进制传输不解释业务内容。
 
-配置面板可以引用 /config-appearance.js 和 /config-theme.css，跟随宿主的外观选择。配色使用 --surface、--field、--text、--muted、--border、--accent 等 CSS 变量；外观偏好独立于场景和插件的 JSON 设置。
+官方能力约定见各自插件 README：obs-scenes 报告当前 OBS 场景和场景变化事件，laplace 发布标准化弹幕；场景组件负责使用这些事件。
 
-参照 contracts/IStreamUIPlugin.cs。插件是实现 IStreamUIPlugin 的 .NET 10 类，StartAsync 启动后台工作并及时返回，停止时取消令牌并调用 DisposeAsync。保存插件设置会重新创建该实例。
+## HTTP
 
-插件文件放入用户 plugins/<id>/，清单 plugin.json：
-
-~~~json
-{
-  "id": "uptime",
-  "name": "系统运行时间",
-  "version": "1.0.0",
-  "assembly": "Uptime.dll",
-  "type": "StreamUI.Examples.UptimePlugin",
-  "capabilities": ["system.uptime"],
-  "settingsPage": "settings.html"
-}
-~~~
-
-IPluginContext 提供 ID、独立数据目录、只读 JSON 设置，以及 Publish(topic, data)、PublishBinary(topic, bytes)。JSON 事件名自动加上 plugin.<id>. 前缀；二进制流由 client.binary(id, topic, callback) 订阅，慢客户端丢弃旧帧。二进制格式由插件定义。
-
-插件配置页通过 SDK 保存自己的 JSON，核心不解释字段。原生插件以当前用户权限运行；此机制不提供代码沙箱。
-
-~~~sh
-powershell.exe -NoProfile -File plugins/desktop-audio/build.ps1 -SdkPath sdk/native
-~~~
-
-将生成目录中的文件及示例 plugin.json、settings.html 放入用户 plugins/uptime/，在配置页刷新并启用。
-
-## HTTP 与端口
-
-公开输出端口：5280。配置端口：5281。两者仅监听回环地址。
+输出与配置端口仅监听回环地址，默认 5280、5281。写请求必须包含 X-StreamUI-Request:1。
 
 公开接口：
 - GET /api/state
-- GET /api/scenes/<id>/settings
-- GET /api/presets/<id>/settings
-- POST /api/actions/scene，正文 { "id": "live" }
-- POST /api/actions/away，正文 { "enabled": true }
-- WebSocket /ws/events
-- WebSocket /ws/plugins/<id>/<topic>
-- /user/scenes/...、/user/plugins/...、/sdk/streamui.js
+- GET /api/scenes/<id>/settings、GET /api/presets/<id>/settings
+- POST /api/actions/scene
+- WebSocket /ws/events、/ws/plugins/<id>/<topic>
+- /user/scenes/...、/user/presets/...、/sdk/streamui.js
 
-配置端口额外接口：
-- GET /api/settings、PUT /api/settings
+配置端口额外提供：
+- GET、PUT、PATCH /api/settings，仅允许 enabledPlugins
 - GET /api/presets、POST /api/presets/reload、POST /api/presets/activate
-- PUT /api/presets/<id>/settings
-- PUT /api/scenes/<id>/settings
-- GET /api/plugins/<id>/settings、PUT /api/plugins/<id>/settings
-- POST /api/plugins/reload
-- POST /api/obs/reconnect、POST /api/chat/reconnect
-- GET /api/storage
-- PUT /api/startup
-- POST /api/open/obs、config、data、plugins
-- POST /api/shutdown
+- POST /api/previews、DELETE /api/previews/<id>
+- PUT、PATCH /api/scenes/<id>/settings、/api/presets/<id>/settings
+- GET、PUT、PATCH /api/plugins/<id>/settings
+- POST /api/plugins/reload、GET /api/storage
+- PUT /api/startup、POST /api/open/<page>、POST /api/shutdown
 
-写请求使用 JSON 正文及 X-StreamUI-Request: 1。设置变更只更新对应配置文件；用户场景源码和素材不由这些接口改写。
-
-GET /api/settings 和 PUT /api/settings 仅包含 obs、laplace 和 enabledPlugins。PUT 会拒绝 scenes、selectedSceneId、away 等结构字段；保存连接或插件偏好不会改动预制槽位、当前选择或暂离状态。场景切换和暂离使用 /api/actions/scene、/api/actions/away；场景参数继续使用 /api/scenes/<id>/settings，设置页应通过 getSceneContext().sceneId 绑定当前 ID。
-
-POST /api/presets/activate 使用 `{ "id": "latenite" }` 应用已安装预设，`{ "id": null }` 停用。它仅在配置端口可用。预设目录默认在 EXE 旁，通过 --presets-dir 可指定其他目录；预设和能力插件不包含在 Host EXE 或 Host 发布 ZIP 中。
+没有 OBS、弹幕或暂离专用 API。scene.enter / leave 与转场 play({container,from,to,covered,signal}) 协议保持不变。转场完全遮盖时调用 covered()，完成时返回；取消响应 signal，最长 15 秒。

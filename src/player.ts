@@ -3,11 +3,11 @@ import type { TransitionModule } from './sdk/contracts.ts';
 import { SceneCoordinator } from './scene-coordinator.ts';
 import './player.css';
 
-const client = createClient();
+const previewId = new URLSearchParams(location.search).get('preview');
+const client = createClient({ previewId });
 const stage = document.getElementById('stage')!;
 const transitionLayer = document.getElementById('transition-layer')!;
-const forced = new URLSearchParams(location.search).get('scene');
-const preview = new URLSearchParams(location.search).has('preview');
+const preview = Boolean(previewId);
 let currentId: string | null = null;
 let activeFrame: HTMLIFrameElement | null = null;
 function lifecycle(frame: HTMLIFrameElement, topic: 'scene.enter' | 'scene.leave', sceneId: string, presetId = ''): void {
@@ -21,7 +21,7 @@ const coordinator = new SceneCoordinator<HTMLIFrameElement>({
       frame.style.visibility = 'hidden'; frame.setAttribute('sandbox', 'allow-scripts allow-same-origin');
       const url = new URL('/user/' + scene.entry, location.origin); url.searchParams.set('streamuiScene', scene.id);
       if (scene.presetId) url.searchParams.set('streamuiPreset', scene.presetId);
-      if (preview) url.searchParams.set('streamuiPreview', '1');
+      if (previewId) url.searchParams.set('streamuiPreview', previewId);
       const abort = () => { clearTimeout(timer); frame.remove(); reject(new DOMException('Canceled', 'AbortError')); };
       const timer = setTimeout(() => { frame.remove(); signal.removeEventListener('abort', abort); reject(new Error('场景加载超时。')); }, 10000);
       signal.addEventListener('abort', abort, { once: true });
@@ -58,17 +58,17 @@ const coordinator = new SceneCoordinator<HTMLIFrameElement>({
   remove(frame) { if (frame === activeFrame && currentId) { lifecycle(frame, 'scene.leave', currentId); activeFrame = null; currentId = null; } frame.remove(); },
 });
 client.onState(state => {
-  const id = forced ?? state.scene.activeId;
+  const id = state.scene.activeId;
   const scene = state.scenes.find(item => item.id === id);
   if (!scene) { coordinator.clear(); return; }
   stage.style.width = scene.width + 'px'; stage.style.height = scene.height + 'px';
   stage.style.transform = 'scale(' + Math.min(innerWidth / scene.width, innerHeight / scene.height) + ')';
-  void coordinator.activate(scene).catch(error => {
+  void coordinator.activate(scene, state.scene.playback).catch(error => {
     console.error(error);
     if (preview) parent.postMessage({ source: 'streamui-preview', error: (error as Error).message }, new URL(state.configUrl).origin);
   });
 });
-window.addEventListener('resize', () => { if (client.state) { const scene = client.state.scenes.find(s => s.id === (forced ?? client.state!.scene.activeId)); if (scene) stage.style.transform = 'scale(' + Math.min(innerWidth / scene.width, innerHeight / scene.height) + ')'; } });
+window.addEventListener('resize', () => { if (client.state) { const scene = client.state.scenes.find(s => s.id === client.state!.scene.activeId); if (scene) stage.style.transform = 'scale(' + Math.min(innerWidth / scene.width, innerHeight / scene.height) + ')'; } });
 window.addEventListener('pagehide', () => { coordinator.clear(); client.stop(); });
 window.addEventListener('pageshow', () => client.start());
 client.start();

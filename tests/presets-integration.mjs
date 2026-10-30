@@ -11,8 +11,8 @@ for(const id of ['demo','alternate','invalid','escaping','needs-plugin']){
  const root=path.join(catalog,id);await mkdir(root,{recursive:true});
  await writeFile(path.join(root,'scene.html'),'<!doctype html><body>Test scene</body>');
  await writeFile(path.join(root,'settings.html'),'<!doctype html><body>Test parameters</body>');
- await writeFile(path.join(root,'defaults.json'),JSON.stringify({title:'Author default',nested:{first:1,second:2}}));
- await writeFile(path.join(root,'preset.json'),JSON.stringify({formatVersion:1,sdkVersion:id==='invalid'?999:1,id,name:id,version:'1.0.0',description:'Synthetic test fixture',scenes,defaultScene:'wide',awayScene:'away',settingsPage:'settings.html',defaults:id==='escaping'?'../private.json':'defaults.json',plugins:id==='needs-plugin'?[{id:'missing-provider',minimumVersion:'1.0.0',required:true}]:[]}));
+ await writeFile(path.join(root,'defaults.json'),JSON.stringify({title:'Author default',nested:{first:1,second:2},layout:{chatX:0.85}}));
+ await writeFile(path.join(root,'preset.json'),JSON.stringify({formatVersion:1,sdkVersion:id==='invalid'?999:2,id,name:id,version:'1.0.0',description:'Synthetic test fixture',scenes,defaultScene:'wide',settingsPage:'settings.html',defaults:id==='escaping'?'../private.json':'defaults.json',plugins:id==='needs-plugin'?[{id:'missing-provider',minimumVersion:'1.0.0',required:true}]:[]}));
 }
 async function freePort(){const server=createServer();await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const value=server.address().port;await new Promise(resolve=>server.close(resolve));return value;}
 const outputPort=await freePort();let configPort=await freePort();while(configPort===outputPort)configPort=await freePort();
@@ -35,6 +35,19 @@ try{
  const values=await request('/api/presets/demo/settings');
  check(values.nested.first===9&&values.nested.second===2,'user parameter overrides merge with author defaults');
  check(JSON.parse(await readFile(path.join(catalog,'demo/defaults.json'),'utf8')).title==='Author default','saving user parameters never overwrites preset source');
+ await request('/api/presets/demo/settings','PUT',{...values,title:'Personal title'});
+ let overrides=JSON.parse(await readFile(path.join(directory,'preset-settings/demo.json'),'utf8'));
+ check(!('second' in overrides.nested)&&!('layout' in overrides),'saving a merged snapshot does not freeze unchanged author defaults');
+ await writeFile(path.join(catalog,'demo/defaults.json'),JSON.stringify({title:'Author default',nested:{first:1,second:8},layout:{chatX:0.7}}));
+ let revised=await request('/api/presets/demo/settings');
+ check(revised.nested.second===8&&revised.layout.chatX===0.7&&revised.title==='Personal title','author layout changes remain effective after the user saves a title');
+ await request('/api/presets/demo/settings','PATCH',{custom:{retained:true},nested:{first:9}});
+ await request('/api/presets/demo/settings','PATCH',{custom:{next:true}});
+ revised=await request('/api/presets/demo/settings');
+ check(revised.custom.retained&&revised.custom.next&&revised.title==='Personal title'&&revised.nested.second===8,'field patches preserve unrelated personal values and current author defaults');
+ await request('/api/presets/demo/settings','PATCH',{nested:{first:1}});
+ overrides=JSON.parse(await readFile(path.join(directory,'preset-settings/demo.json'),'utf8'));
+ check(!('nested' in overrides),'returning a value to its author default removes its override');
  await request('/api/presets/activate','POST',{id:'alternate'});
  check((await request('/api/state')).scene.activeId==='alternate__wide'&&(await request('/api/presets/alternate/settings')).title==='Author default','scene and parameter namespaces are isolated between presets');
  await request('/api/presets/activate','POST',{id:'demo'});
@@ -43,9 +56,9 @@ try{
  check(missing.status===400&&(await request('/api/state')).preset.id==='demo','missing dependencies cannot replace the working preset');
  await request('/api/actions/scene','POST',{id:'demo__full'});state=await request('/api/state');
  check(state.scene.activeId==='demo__full'&&state.scenes.every(s=>s.runtimeGroup==='demo__overlay'),'shared runtime metadata survives registration');
- await request('/api/actions/away','POST',{enabled:true});state=await request('/api/state');
- check(state.scene.activeId==='demo__away'&&state.scene.selectedId==='demo__full','away mode retains the normal scene');
- await request('/api/actions/away','POST',{enabled:false});await stop();await start();state=await request('/api/state');
+ await request('/api/actions/scene','POST',{id:'demo__away'});state=await request('/api/state');
+ check(state.scene.activeId==='demo__away'&&state.scene.previousId==='demo__full'&&!('away'in state.scene),'a preset may implement away as an ordinary scene');
+ await request('/api/actions/scene','POST',{id:'demo__full'});await stop();await start();state=await request('/api/state');
  check(state.preset.id==='demo'&&state.scene.activeId==='demo__full'&&(await request('/api/presets/demo/settings')).title==='Personal title','restart restores the explicit preset, scene and parameters');
  await request('/api/presets/activate','POST',{id:null});state=await request('/api/state');
  check(state.preset===null&&state.scenes.length===0,'deactivation clears the output');

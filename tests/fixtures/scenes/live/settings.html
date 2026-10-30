@@ -1,4 +1,11 @@
-<!doctype html><html lang="zh-CN"><meta charset="UTF-8"><script src="/config-appearance.js"></script><link rel="stylesheet" href="/config-theme.css"><style>body{margin:0;font:15px system-ui;color:var(--text)}label{display:grid;gap:9px}input{background:var(--field);color:var(--text);font:inherit;padding:10px 12px;border:1px solid var(--border);border-radius:8px}button{margin-top:18px;padding:9px 20px;border:0;border-radius:8px;background:var(--accent);color:white;font:inherit}output{margin-left:15px}</style><form><label>标题<input id="title" required></label><button>保存</button><output id="status"></output></form><script type="module">
-import{createClient,getSceneContext}from'/sdk/streamui.js';const client=createClient(),settings=client.settings('scene',getSceneContext().sceneId||'live');const values=await settings.read();document.querySelector('#title').value=values.title||'直播';
-document.querySelector('form').onsubmit=async event=>{event.preventDefault();try{await settings.save({...values,title:document.querySelector('#title').value});document.querySelector('#status').textContent='已保存';}catch(error){document.querySelector('#status').textContent=error.message;}};
+<!doctype html><html lang="zh-CN"><meta charset="UTF-8"><script src="/config-appearance.js"></script><link rel="stylesheet" href="/config-theme.css"><style>body{margin:0;font:15px system-ui;color:var(--text)}label{display:grid;gap:8px}input{background:var(--field);color:var(--text);font:inherit;padding:10px;border:1px solid var(--border);border-radius:8px}output{display:block;margin-top:12px}</style><form><label>标题<input id="value"  required></label><output role="status">更改后自动保存</output></form><script type="module">
+import {createClient,getSceneContext,createAutoSave} from '/sdk/streamui.js';
+const context=getSceneContext(),settings=createClient().settings('scene',context.sceneId||'live'),values=await settings.read();
+const input=document.querySelector('input'),status=document.querySelector('output');
+input.value=values.title??'直播';
+const labels={pending:'等待自动保存…',saving:'正在保存…',saved:'已自动保存并生效',error:'自动保存失败'};
+const save=createAutoSave(patch=>settings.patch(patch),{onStatus:value=>status.textContent=labels[value],onError:error=>status.textContent=error.message});
+const update=immediate=>{if(input.checkValidity())save.update({title:input.value},immediate);else status.textContent='请填写有效的参数';};
+input.oninput=()=>update(false);input.onchange=()=>update(true);document.querySelector('form').onsubmit=event=>event.preventDefault();
+addEventListener('pagehide',()=>void save.flush().catch(()=>{}));
 </script></html>
