@@ -27,7 +27,9 @@ client.on('scene.enter', callback) 和 scene.leave 是播放器发送的页面�
 
 输出页面使用 /?preview=<id> 作为预览播放器地址，普通 / 始终表示实际输出。场景中的 SDK 自动使用父播放器传入的 streamuiPreview。能力组件必须根据 getSceneContext().preview 判断是否执行真实自动联动；预览不响应外部 OBS 切换。
 
-预览隔离播放状态；持久化参数仍由相应场景或插件共享。
+预览隔离主场景播放状态；持久化参数仍由相应场景、预设或插件共享。Host 控件可用预设共享参数控制覆盖效果，而不调用 selectScene。
+
+场景的 role 默认为 scene；overlay 描述仅用于配置，不进入主场景下拉，也不能作为 selectScene 的目标。覆盖层的组成和显隐由预设自行实现。选择“场景配置”中的条目只改变编辑对象，不改变预览或输出。
 
 ## 参数
 

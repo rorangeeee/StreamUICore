@@ -203,7 +203,7 @@ public sealed class HostServer : IAsyncDisposable
         if (store.Current.ActivePresetId is { } presetId) {
             try {
                 var previous = store.Current; var restored = presets.Apply(previous, presetId, plugins.Status);
-                restored = restored with { SelectedSceneId = restored.Scenes.Any(s => s.Id == previous.SelectedSceneId) ? previous.SelectedSceneId : restored.SelectedSceneId };
+                restored = restored with { SelectedSceneId = restored.Scenes.Any(s => s.Id == previous.SelectedSceneId && s.Role == "scene") ? previous.SelectedSceneId : restored.SelectedSceneId };
                 await store.Save(restored); await plugins.Reload(presets.EffectivePlugins(restored));
             } catch (ArgumentException error) { presetError = error.Message; await store.Save(presets.Apply(store.Current, null, [])); }
         }

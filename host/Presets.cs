@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 namespace StreamUI;
 
 public record PresetScene(string Id, string Name, string Entry, int Width = 1920, int Height = 1080,
-    string Transition = "", string SettingsPage = "", string View = "", string RuntimeGroup = "", string Defaults = "");
+    string Transition = "", string SettingsPage = "", string View = "", string RuntimeGroup = "", string Defaults = "", string Role = "scene");
 public record PresetDependency(string Id, string MinimumVersion = "1.0.0", bool Required = true);
 public record PresetManifest(int FormatVersion, int SdkVersion, string Id, string Name, string Version,
     string Description, PresetScene[] Scenes, string DefaultScene,
@@ -67,7 +67,7 @@ public sealed class PresetCatalog
                 if (manifest.Scenes.Any(s => s is null || !Slug(s.Id) || string.IsNullOrWhiteSpace(s.Name)
                     || s.Entry is null || s.Transition is null || s.SettingsPage is null || s.RuntimeGroup is null || s.View is null || s.Defaults is null))
                     throw new ArgumentException("预设场景无效。");
-                if (manifest.Scenes.Select(s => s.Id).Distinct().Count() != manifest.Scenes.Length || !manifest.Scenes.Any(s => s.Id == manifest.DefaultScene))
+                if (manifest.Scenes.Select(s => s.Id).Distinct().Count() != manifest.Scenes.Length || !manifest.Scenes.Any(s => s.Id == manifest.DefaultScene && s.Role == "scene"))
                     throw new ArgumentException("预设默认场景或场景 ID 无效。");
                 foreach (var scene in manifest.Scenes)
                 {
@@ -119,7 +119,7 @@ public sealed class PresetCatalog
         Scenes = manifest.Scenes.Select(s => new SceneSlot(SceneId(manifest.Id, s.Id), s.Name, $"presets/{manifest.Id}/{s.Entry}",
             s.Width, s.Height, s.Transition == "" ? "" : $"presets/{manifest.Id}/{s.Transition}",
             s.SettingsPage == "" ? "" : $"presets/{manifest.Id}/{s.SettingsPage}", s.Defaults == "" ? "" : $"presets/{manifest.Id}/{s.Defaults}")
-            { PresetId = manifest.Id, SceneId = s.Id, View = s.View, RuntimeGroup = s.RuntimeGroup == "" ? "" : SceneId(manifest.Id, s.RuntimeGroup) }).ToArray(),
+            { PresetId = manifest.Id, SceneId = s.Id, View = s.View, Role = s.Role, RuntimeGroup = s.RuntimeGroup == "" ? "" : SceneId(manifest.Id, s.RuntimeGroup) }).ToArray(),
         SelectedSceneId = SceneId(manifest.Id, manifest.DefaultScene)
     };
     private static JsonObject Object(string json) => JsonSettings.Object(json);

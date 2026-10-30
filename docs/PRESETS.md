@@ -9,7 +9,7 @@
   "defaultScene":"live","defaults":"defaults.json","sidebarPage":"sidebar.html",
   "scenes":[
     {"id":"live","name":"直播","entry":"ui/index.html","settingsPage":"settings/live.html","defaults":"defaults/live.json","width":1920,"height":1080,"view":"live","runtimeGroup":"overlay"},
-    {"id":"pause","name":"暂离","entry":"ui/index.html","settingsPage":"settings/pause.html","defaults":"defaults/pause.json","width":1920,"height":1080,"view":"pause","runtimeGroup":"overlay"}
+    {"id":"pause","name":"覆盖层配置","role":"overlay","entry":"ui/index.html","settingsPage":"settings/pause.html","defaults":"defaults/pause.json","width":1920,"height":1080,"view":"pause","runtimeGroup":"overlay"}
   ],
   "plugins":[],
   "build":{"kind":"vite","output":"ui"}
@@ -24,7 +24,9 @@
 
 Core 不定义标题、颜色、OBS 场景名或暂离字段。参数页使用 getSceneContext().sceneId 读取该场景设置，并 PATCH 具体改动。保存只保留与当前作者默认值不同的覆盖，避免一个标题修改固定其余默认布局。
 
-view 是预设作者的标记，Core 不解释它。暂离与普通场景没有宿主层区别；预设可用 sidebarPage 提供侧栏预览控件，使用继承当前 previewId 的 SDK 客户端选择场景。Core 没有 awayScene 或暂离专用 API。
+view 是预设作者的标记，Core 不解释它。role 默认为 scene，表示可播放主场景；role:overlay 保留独立配置和默认值，不可通过 selectScene 替换主场景。覆盖画面由预设运行页自行组合，Core 不另建覆盖 iframe。默认场景必须为主场景。
+
+预设可用 sidebarPage 提供 Host 控件。LATENITE 的暂离开关更新共享预设参数 controls.away，实际输出和预览同步响应，不改变各自的主场景与播放时钟；暂离表现属于预设，Core 没有 awayScene 或暂离专用 API。
 
 ## 能力组件
 

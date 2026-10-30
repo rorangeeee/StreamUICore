@@ -7,6 +7,7 @@ const select = (id: string) => $<HTMLSelectElement>(id);
 const live = createClient({ previewId: null });
 let preview: ReturnType<typeof createClient> | null = null, previewId = '';
 let state: PublicState | null = null, currentPreset: string | null | undefined;
+let settingsSceneId: string | null = null;
 let sceneSignature = '', panelSignature = '', pluginSignature = '', sidebarSignature = '', presetPanelSignature = '';
 let preferences: CoreSettings = { enabledPlugins: [] };
 let toastTimer: ReturnType<typeof setTimeout> | undefined;
@@ -47,7 +48,7 @@ function settingsFrame(path: string, parameters: Record<string, string>, title: 
   frame.src = url.href; return frame;
 }
 function mountScenePanel(): void {
-  const scene = state?.scenes.find(scene => scene.id === state!.scene.activeId);
+  const scene = state?.scenes.find(scene => scene.id === settingsSceneId);
   const signature = JSON.stringify([scene?.id, scene?.settingsPage, previewId]);
   if (signature !== panelSignature) {
     panelSignature = signature;
@@ -82,14 +83,15 @@ function fitPreview(): void {
 }
 function syncPreview(value: PublicState): void {
   state = value;
-  const signature = JSON.stringify(value.scenes.map(scene => [scene.id, scene.name]));
+  const signature = JSON.stringify(value.scenes.map(scene => [scene.id, scene.name, scene.role]));
   if (signature !== sceneSignature) {
     sceneSignature = signature;
-    for (const id of ['preview-scene', 'settings-scene']) select(id).replaceChildren(...value.scenes.map(scene => new Option(scene.name, scene.id)));
+    select('preview-scene').replaceChildren(...value.scenes.filter(scene => scene.role !== 'overlay').map(scene => new Option(scene.name, scene.id)));
+    select('settings-scene').replaceChildren(...value.scenes.map(scene => new Option(scene.name, scene.id)));
   }
-  for (const id of ['preview-scene', 'settings-scene']) {
-    select(id).value = value.scene.activeId ?? ''; select(id).disabled = value.scenes.length === 0;
-  }
+  if (!value.scenes.some(scene => scene.id === settingsSceneId)) settingsSceneId = value.scene.activeId;
+  select('preview-scene').value = value.scene.activeId ?? ''; select('preview-scene').disabled = !value.scenes.some(scene => scene.role !== 'overlay');
+  select('settings-scene').value = settingsSceneId ?? ''; select('settings-scene').disabled = value.scenes.length === 0;
   const url = new URL(value.outputUrl); url.searchParams.set('preview', previewId);
   const frame = $<HTMLIFrameElement>('preview-frame'); if (frame.src !== url.href) frame.src = url.href;
   fitPreview(); mountScenePanel(); mountSidebar();
@@ -136,7 +138,7 @@ async function catalog(refresh = false): Promise<void> {
   select('preset-picker').value = selected;
 }
 select('preview-scene').onchange = () => void preview?.selectScene(select('preview-scene').value).catch(failure);
-select('settings-scene').onchange = () => void preview?.selectScene(select('settings-scene').value, { animate: false }).catch(failure);
+select('settings-scene').onchange = () => { settingsSceneId = select('settings-scene').value; mountScenePanel(); };
 $('replay').onclick = () => { if (state?.scene.activeId) void preview?.selectScene(state.scene.activeId).catch(failure); };
 $('activate-preset').onclick = () => void request('/api/presets/activate', 'POST', { id: select('preset-picker').value || null }).catch(failure);
 $('refresh-presets').onclick = () => void catalog(true).catch(failure);

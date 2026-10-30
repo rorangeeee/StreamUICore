@@ -2,6 +2,7 @@ export interface SceneSlot {
   id: string; name: string; entry: string; width: number; height: number;
   transition: string; settingsPage: string; defaults: string;
   presetId?: string; sceneId?: string; view?: string; runtimeGroup?: string;
+  role?: 'scene' | 'overlay';
 }
 export interface PluginInfo {
   id: string; name: string; version: string; capabilities: string[];

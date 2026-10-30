@@ -11,6 +11,7 @@ public record SceneSlot(string Id, string Name, string Entry, int Width = 1920, 
     public string SceneId { get; init; } = "";
     public string View { get; init; } = "";
     public string RuntimeGroup { get; init; } = "";
+    public string Role { get; init; } = "scene";
 }
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public record BroadcasterSettings(string[] EnabledPlugins);
@@ -32,7 +33,7 @@ public record HostSettings
     public void Validate()
     {
         if (Scenes is null || Scenes.Length > 100 || Scenes.Any(s => s is null || !IsId(s.Id) || string.IsNullOrWhiteSpace(s.Name) || s.Name.Length > 100
-            || s.Width is < 320 or > 7680 || s.Height is < 180 or > 4320 || s.Entry is null || s.Transition is null || s.SettingsPage is null || s.Defaults is null))
+            || s.Width is < 320 or > 7680 || s.Height is < 180 or > 4320 || s.Entry is null || s.Transition is null || s.SettingsPage is null || s.Defaults is null || s.Role is not ("scene" or "overlay")))
             throw new ArgumentException("场景信息无效。");
         if (Scenes.Select(s => s.Id).Distinct().Count() != Scenes.Length) throw new ArgumentException("场景 ID 重复。");
         foreach (var scene in Scenes)
@@ -44,13 +45,13 @@ public record HostSettings
             if (scene.Defaults.Length > 0) ContentPath(scene.Defaults, ".json");
         }
         if (ActivePresetId is not null && !IsId(ActivePresetId)) throw new ArgumentException("预设 ID 无效。");
-        if (SelectedSceneId is not null && !Scenes.Any(s => s.Id == SelectedSceneId)) throw new ArgumentException("所选场景不存在。");
+        if (SelectedSceneId is not null && !Scenes.Any(s => s.Id == SelectedSceneId && s.Role == "scene")) throw new ArgumentException("所选主场景不存在。");
         if (EnabledPlugins is null || EnabledPlugins.Any(id => !IsId(id)) || EnabledPlugins.Distinct().Count() != EnabledPlugins.Length)
             throw new ArgumentException("插件 ID 无效。");
     }
     public HostSettings Select(string id)
     {
-        if (!Scenes.Any(s => s.Id == id)) throw new ArgumentException("场景不存在。");
+        if (!Scenes.Any(s => s.Id == id && s.Role == "scene")) throw new ArgumentException("请选择主场景。");
         return this with { SelectedSceneId = id };
     }
 }
