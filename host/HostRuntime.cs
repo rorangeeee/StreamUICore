@@ -14,6 +14,7 @@ public sealed class HostRuntime : IAsyncDisposable
     public string? Error { get; private set; }
     public string ObsUrl => $"http://127.0.0.1:{obsPort}/";
     public string ConfigUrl => $"http://127.0.0.1:{configPort}/";
+    public PresetTrayControlState[] TrayControls => State == ServiceState.Running ? server?.TrayControls ?? [] : [];
     public event Action? Changed;
     public event Action? ShutdownRequested;
     public HostRuntime(SettingsStore store, string root, int obsPort, int configPort)
@@ -25,6 +26,14 @@ public sealed class HostRuntime : IAsyncDisposable
         await operations.WaitAsync();
         try { await StopCore(); await StartCore(); }
         finally { operations.Release(); }
+    }
+    public async Task ToggleTrayControl(string presetId, string setting)
+    {
+        await operations.WaitAsync();
+        try {
+            if (server is null || State != ServiceState.Running) throw new InvalidOperationException("请先启动服务。");
+            await server.ToggleTrayControl(presetId, setting);
+        } finally { operations.Release(); }
     }
     private async Task StartCore()
     {

@@ -18,7 +18,7 @@
 
 目录名与清单 id 相同，预设和局部场景 ID 使用 1–30 位小写字母、数字和横线。全局场景 ID 为 <preset-id>__<scene-id>。所有资源是仓库内的相对路径，不允许绝对路径、URL、.. 或符号链接。settingsPage、defaults、sidebarPage 可省略；构建后的入口和声明的文件必须存在。
 
-## 场景参数与侧栏
+## 场景参数与快捷控制
 
 每个场景通过自己的 defaults 定义作者参数，由 settingsPage 提供配置页面。用户覆盖保存在 scene-settings/<global-id>.json。根 defaults 和 settingsPage 可用于跨场景共享参数，与场景 scope 分开。
 
@@ -27,6 +27,18 @@ Core 不定义标题、颜色、OBS 场景名或暂离字段。参数页使用 g
 view 是预设作者的标记，Core 不解释它。role 默认为 scene，表示可播放主场景；role:overlay 保留独立配置和默认值，不可通过 selectScene 替换主场景。覆盖画面由预设运行页自行组合，Core 不另建覆盖 iframe。默认场景必须为主场景。
 
 预设可用 sidebarPage 提供 Host 控件。LATENITE 的暂离开关更新共享预设参数 controls.away，实际输出和预览同步响应，不改变各自的主场景与播放时钟；暂离表现属于预设，Core 没有 awayScene 或暂离专用 API。
+
+Core 0.6.1 起，预设还可在根清单声明托盘右键菜单开关：
+
+~~~json
+"trayControls": [
+  { "label": "显示遮罩", "setting": "controls.cover" }
+]
+~~~
+
+label 是菜单文字，setting 是共享预设参数的点分路径；该路径必须在 defaults 中声明为布尔值。最多 16 项，路径不能重复，不支持数组索引或执行脚本。Core 读取当前值作为勾选状态，点击时仅 PATCH 对应字段，并广播 preset.settingsChanged。网页控件和托盘因此共用保存与同步机制，点击不会选择场景或生成播放时钟。
+
+菜单仅显示当前启用预设的声明。停用或切换预设会移除旧入口；已更换预设的过期菜单操作会被拒绝。参数类型无效时开关置灰。Core 只处理通用布尔参数，具体开关含义与画面效果由预设实现。
 
 ## 能力组件
 

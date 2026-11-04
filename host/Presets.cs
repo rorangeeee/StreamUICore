@@ -7,9 +7,12 @@ namespace StreamUI;
 public record PresetScene(string Id, string Name, string Entry, int Width = 1920, int Height = 1080,
     string Transition = "", string SettingsPage = "", string View = "", string RuntimeGroup = "", string Defaults = "", string Role = "scene");
 public record PresetDependency(string Id, string MinimumVersion = "1.0.0", bool Required = true);
+public record PresetTrayControl(string Label, string Setting);
+public record PresetTrayControlState(string PresetId, string Label, string Setting, bool? Value);
 public record PresetManifest(int FormatVersion, int SdkVersion, string Id, string Name, string Version,
     string Description, PresetScene[] Scenes, string DefaultScene,
-    string SettingsPage = "", string Defaults = "", PresetDependency[]? Plugins = null, string SidebarPage = "");
+    string SettingsPage = "", string Defaults = "", PresetDependency[]? Plugins = null, string SidebarPage = "",
+    PresetTrayControl[]? TrayControls = null);
 public record PresetInfo(string Id, string Name, string Version, string Description, int SceneCount,
     PresetDependency[] Plugins, bool Available, string? Error);
 
@@ -77,7 +80,14 @@ public sealed class PresetCatalog
                 }
                 FileEntry(directory, manifest.SettingsPage, ".html", true); FileEntry(directory, manifest.Defaults, ".json", true);
                 FileEntry(directory, manifest.SidebarPage, ".html", true);
-                if (manifest.Defaults != "") Object(File.ReadAllText(Path.Combine(directory, manifest.Defaults)));
+                var defaults = manifest.Defaults == "" ? new JsonObject() : Object(File.ReadAllText(Path.Combine(directory, manifest.Defaults)));
+                var controls = manifest.TrayControls ?? [];
+                if (controls.Length > 16 || controls.Any(control => control is null || string.IsNullOrWhiteSpace(control.Label)
+                    || control.Label.Length > 80 || string.IsNullOrWhiteSpace(control.Setting) || control.Setting.Length > 128
+                    || !Regex.IsMatch(control.Setting, @"^[a-zA-Z_][a-zA-Z0-9_-]*(\.[a-zA-Z_][a-zA-Z0-9_-]*)*$")
+                    || ToggleValue(defaults, control.Setting) is null)
+                    || controls.Select(control => control.Setting).Distinct().Count() != controls.Length)
+                    throw new ArgumentException("托盘开关必须绑定预设默认参数中的布尔值，且路径不能重复。");
                 var dependencies = manifest.Plugins ?? [];
                 if (dependencies.Any(p => p is null || !HostSettings.IsId(p.Id) || !Version.TryParse(p.MinimumVersion, out _))
                     || dependencies.Select(p => p.Id).Distinct().Count() != dependencies.Length) throw new ArgumentException("预设插件依赖无效。");
@@ -134,6 +144,28 @@ public sealed class PresetCatalog
         var file = Path.Combine(data, "preset-settings", id + ".json");
         if (File.Exists(file)) JsonSettings.Merge(defaults, Object(File.ReadAllText(file)));
         return defaults;
+    }
+    private static bool? ToggleValue(JsonObject settings, string path)
+    {
+        JsonNode? value = settings;
+        foreach (var part in path.Split('.')) value = (value as JsonObject)?[part];
+        return value is JsonValue scalar && scalar.TryGetValue<bool>(out var enabled) ? enabled : null;
+    }
+    public PresetTrayControlState[] TrayControls(string? id)
+    {
+        if (id is null || !manifests.TryGetValue(id, out var manifest) || manifest.TrayControls is not { Length: > 0 } controls) return [];
+        JsonObject settings;
+        try { settings = ReadSettings(id); }
+        catch (Exception error) when (error is JsonException or ArgumentException or IOException or UnauthorizedAccessException) { settings = new(); }
+        return controls.Select(control => new PresetTrayControlState(id, control.Label, control.Setting, ToggleValue(settings, control.Setting))).ToArray();
+    }
+    public async Task ToggleTrayControl(string id, string setting)
+    {
+        if (!(Get(id).TrayControls ?? []).Any(control => control.Setting == setting)) throw new ArgumentException("预设没有声明这个托盘开关。");
+        var value = ToggleValue(ReadSettings(id), setting) ?? throw new ArgumentException("托盘开关对应的参数不是布尔值。");
+        JsonNode patch = JsonValue.Create(!value)!;
+        foreach (var part in setting.Split('.').Reverse()) patch = new JsonObject { [part] = patch };
+        await SaveSettings(id, JsonSerializer.SerializeToElement(patch), true);
     }
     public async Task SaveSettings(string id, JsonElement value, bool patch = false)
     {

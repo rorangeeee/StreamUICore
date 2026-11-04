@@ -52,6 +52,8 @@ createAutoSave 合并约 300 ms 的连续输入，第二参数 true 立即提交
 
 配置页从扩展的 settingsPage 加载 HTML，自动适应其内容高度。场景、预设和插件分别收到对应 ID。preset.sidebarPage 可在预览页提供场景控件，并获得当前配置页的 previewId；Core 不解释控件含义。
 
+预设清单的 trayControls 可把共享预设布尔参数映射为原生托盘开关（Core 0.6.1 起，见 PRESETS.md）。托盘沿用参数保存和 preset.settingsChanged 通知，不增加场景专用操作接口；网页面板收到同一通知后重新读取参数即可同步。
+
 ## 插件能力
 
 插件发布的 JSON 事件名为 plugin.<id>.<topic>。plugins[].topics 包含每个 topic 的最新公开值，便于新页面取得初始状态。私有设置不会出现在公开状态。

@@ -1,3 +1,4 @@
+using System.Text.Json;
 namespace StreamUI;
 
 internal sealed class Tray : ApplicationContext
@@ -11,6 +12,9 @@ internal sealed class Tray : ApplicationContext
     private readonly ToolStripMenuItem stop = new("停止服务");
     private readonly ToolStripMenuItem restart = new("重启服务");
     private readonly ToolStripMenuItem startup = new("登录 Windows 时启动") { CheckOnClick = true };
+    private readonly ToolStripSeparator presetBoundary = new();
+    private readonly List<ToolStripMenuItem> presetControls = [];
+    private string presetSignature = "";
     private readonly RegisteredWaitHandle activationWait;
     private bool busy;
 
@@ -23,7 +27,7 @@ internal sealed class Tray : ApplicationContext
         menu.Items.Add(status); menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("打开配置页面", null, (_, _) => _ = Run(host.Start, host.ConfigUrl));
         menu.Items.Add("打开 OBS 画面", null, (_, _) => _ = Run(host.Start, host.ObsUrl));
-        menu.Items.Add(new ToolStripSeparator());
+        menu.Items.Add(presetBoundary);
         start.Click += (_, _) => _ = Run(host.Start);
         stop.Click += (_, _) => _ = Run(host.Stop);
         restart.Click += (_, _) => _ = Run(host.Restart);
@@ -65,6 +69,23 @@ internal sealed class Tray : ApplicationContext
         stop.Enabled = !busy && host.State == ServiceState.Running;
         restart.Enabled = !busy && host.State == ServiceState.Running;
         startup.Checked = WindowsStartup.Enabled;
+        var controls = host.TrayControls;
+        var signature = JsonSerializer.Serialize(controls.Select(control => new { control.PresetId, control.Label, control.Setting }));
+        if (signature != presetSignature) {
+            presetSignature = signature;
+            var menu = icon.ContextMenuStrip!;
+            foreach (var item in presetControls) { menu.Items.Remove(item); item.Dispose(); }
+            presetControls.Clear();
+            foreach (var control in controls) {
+                var item = new ToolStripMenuItem(control.Label);
+                item.Click += (_, _) => _ = Run(() => host.ToggleTrayControl(control.PresetId, control.Setting));
+                menu.Items.Insert(menu.Items.IndexOf(presetBoundary), item); presetControls.Add(item);
+            }
+        }
+        for (var index = 0; index < controls.Length; index++) {
+            presetControls[index].Checked = controls[index].Value == true;
+            presetControls[index].Enabled = !busy && host.State == ServiceState.Running && controls[index].Value.HasValue;
+        }
     }
     private async Task Run(Func<Task> action, string? open = null)
     {

@@ -21,6 +21,7 @@ public sealed class HostServer : IAsyncDisposable
     public string ConfigUrl { get; }
     public event Action? ShutdownRequested;
     public event Action? SettingsChanged;
+    public PresetTrayControlState[] TrayControls => presets.TrayControls(store.Current.ActivePresetId);
     private SceneRuntime Scope(HttpRequest request)
     {
         var id = request.Query["preview"].ToString();
@@ -146,7 +147,10 @@ public sealed class HostServer : IAsyncDisposable
         app.MapGet("/api/presets/{id}/settings", (string id) => Results.Json(presets.ReadSettings(id), SettingsStore.Json));
         app.MapMethods("/api/presets/{id}/settings", ["PUT", "PATCH"], async (string id, HttpRequest request) => {
             using var json = await JsonDocument.ParseAsync(request.Body); await mutations.WaitAsync();
-            try { await presets.SaveSettings(id, json.RootElement, request.Method == "PATCH"); Emit("preset.settingsChanged", new { id }); return Results.Ok(); }
+            try {
+                await presets.SaveSettings(id, json.RootElement, request.Method == "PATCH");
+                Emit("preset.settingsChanged", new { id }); SettingsChanged?.Invoke(); return Results.Ok();
+            }
             finally { mutations.Release(); }
         });
         app.MapGet("/api/scenes/{id}/settings", (string id, HttpRequest request) => {
@@ -196,6 +200,15 @@ public sealed class HostServer : IAsyncDisposable
         app.UseStaticFiles(new StaticFileOptions { FileProvider = new PhysicalFileProvider(content.Plugins), RequestPath = "/user/plugins" });
         app.UseStaticFiles(new StaticFileOptions { FileProvider = new PhysicalFileProvider(webRoot) });
         plugins.Publish += Emit; plugins.Changed += Broadcast;
+    }
+    public async Task ToggleTrayControl(string presetId, string setting)
+    {
+        await mutations.WaitAsync();
+        try {
+            if (store.Current.ActivePresetId != presetId) throw new InvalidOperationException("预设已更换，请重新打开托盘菜单。");
+            await presets.ToggleTrayControl(presetId, setting);
+            Emit("preset.settingsChanged", new { id = presetId }); SettingsChanged?.Invoke();
+        } finally { mutations.Release(); }
     }
     public async Task Start()
     {
