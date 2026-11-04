@@ -1,34 +1,63 @@
 <!doctype html>
 <html lang="zh-CN">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><script src="/config-appearance.js"></script><link rel="stylesheet" href="/config-theme.css"><link rel="icon" href="/favicon.svg"><title>StreamUI · 配置</title></head>
-<body><div class="console">
-  <aside class="sidebar">
-    <a class="brand" href="/"><span class="brand-mark">S</span>StreamUI</a>
-    <nav role="tablist" aria-label="配置页面">
-      <button id="tab-preview" role="tab" aria-selected="true" aria-controls="panel-preview" data-tab="preview">预览</button>
-      <button id="tab-scenes" role="tab" aria-selected="false" aria-controls="panel-scenes" data-tab="scenes" tabindex="-1">场景配置</button>
-      <button id="tab-plugins" role="tab" aria-selected="false" aria-controls="panel-plugins" data-tab="plugins" tabindex="-1">插件配置</button>
-    </nav>
-    <div id="sidebar-controls"></div>
-    <div class="sidebar-footer"><span id="connection-dot"></span><span id="connection-status">正在连接</span></div>
-  </aside>
-  <main>
-    <section id="panel-preview" role="tabpanel" aria-labelledby="tab-preview">
-      <div class="page-heading"><h1>预览</h1><button class="button" id="open-output" type="button">打开 OBS 画面</button></div>
-      <div class="preset-row"><label>预设<select id="preset-picker"></select></label><button class="button primary" id="activate-preset" type="button">启用预设</button><button class="text-button" id="refresh-presets" type="button">刷新</button><button class="text-button" id="open-presets" type="button">打开目录</button></div>
-      <p id="preset-error" class="error" role="status" hidden></p>
-      <div class="scene-row"><label>预览场景<select id="preview-scene"></select></label><button class="button" id="replay" type="button">重播动效</button></div>
-      <div class="stage-shell"><div id="stage-viewport"><iframe id="preview-frame" title="场景预览"></iframe><div id="empty-preview">选择预设</div></div><div class="stage-footer"><span id="canvas-size"></span><button class="text-button" id="reload-preview" type="button">刷新预览</button></div></div>
-      <div class="output-address"><div><span>OBS 浏览器源地址</span><code id="output-url"></code></div><button class="button" id="copy-url" type="button">复制地址</button></div>
-    </section>
-    <section id="panel-scenes" role="tabpanel" aria-labelledby="tab-scenes" hidden>
-      <div class="page-heading"><h1>场景配置</h1></div>
-      <div class="scene-row"><label>场景<select id="settings-scene"></select></label></div>
-      <div id="scene-settings"></div><div id="preset-settings"></div><p id="empty-settings" class="empty" hidden>这个场景没有配置项</p>
-    </section>
-    <section id="panel-plugins" role="tabpanel" aria-labelledby="tab-plugins" hidden>
-      <div class="page-heading"><h1>插件配置</h1><div class="actions"><button class="text-button" id="refresh-plugins" type="button">刷新</button><button class="button" id="open-plugins" type="button">打开目录</button></div></div>
-      <div id="plugin-list"></div><p id="empty-plugins" class="empty" hidden>暂无插件</p>
-    </section>
-  </main>
-</div><div id="feedback" class="feedback" role="status" hidden></div><script type="module" src="/src/config.ts"></script></body></html>
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#f4f5f6">
+  <script src="/config-appearance.js"></script><link rel="stylesheet" href="/config-theme.css"><link rel="icon" href="/favicon.svg">
+  <title>StreamUI · 设置</title>
+</head>
+<body>
+  <div class="console" data-tab="settings">
+    <header class="app-header">
+      <div class="header-left">
+        <a class="brand" href="/" aria-label="StreamUI 配置首页"><span class="brand-mark">S</span><span>StreamUI</span></a>
+        <nav class="tabs" role="tablist" aria-label="控制台页面">
+          <button id="tab-preview" type="button" role="tab" aria-selected="false" aria-controls="panel-preview" data-tab="preview" tabindex="-1"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4"/></svg>预览</button>
+          <button id="tab-settings" type="button" role="tab" aria-selected="true" aria-controls="panel-settings" data-tab="settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="9" cy="18" r="2"/></svg>设置</button>
+        </nav>
+      </div>
+      <div class="host-connection"><span class="status-dot" id="connection-dot"></span><span id="connection-status" role="status">正在连接 Host</span></div>
+    </header>
+    <div id="service-strip" class="service-strip" aria-label="插件连接状态"></div>
+    <div class="connection-notice" id="connection-notice" role="status">正在连接 Host，载入配置后即可编辑。</div>
+    <div class="workspace">
+      <aside class="sidebar" aria-label="设置导航">
+        <nav class="category-navigation" aria-label="设置分类">
+          <div class="nav-group"><h2>场景预设</h2><div id="scene-navigation" class="nav-items"></div></div>
+          <div class="nav-group"><h2>插件设置</h2><div id="plugin-navigation" class="nav-items"></div></div>
+          <div class="nav-group"><div class="nav-items"><button id="general-settings" type="button">通用设置</button></div></div>
+        </nav>
+        <p class="nav-note">场景与插件分别配置。<br>参数更改后自动保存。</p>
+      </aside>
+      <main id="panel-settings" class="editor" role="tabpanel" aria-labelledby="tab-settings">
+        <div class="page-heading"><div><h1 id="category-title">场景预设</h1><p id="category-description">选择场景，编辑它的配置。</p></div><span class="scope-label" id="settings-scope">场景预设</span></div>
+        <div id="settings-fields" class="settings-content">
+          <div id="scene-panels"><div id="scene-settings"></div><div id="preset-settings"></div><p id="empty-settings" class="help">选择预设后可配置场景。</p></div>
+          <div id="plugin-panels" hidden><div class="plugin-actions"><button class="text-button" id="refresh-plugins" type="button">刷新插件</button><button class="text-button" id="open-plugins" type="button">打开目录</button></div><div id="plugin-list"></div><p id="empty-plugins" class="help" hidden>暂无插件</p></div>
+          <section id="general-panel" class="settings-section" hidden>
+            <p class="section-description">本页选项即时生效。</p>
+            <label class="field" for="appearance-mode"><span>配色</span><select id="appearance-mode"><option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">暗色</option></select></label>
+            <label class="toggle-row" for="startup-enabled"><span>登录 Windows 后自动启动 Host</span><input id="startup-enabled" type="checkbox" role="switch"></label>
+            <p class="help">配色仅影响配置页。直播画面的配色由场景视觉系统决定。</p>
+          </section>
+        </div>
+        <div class="savebar"><div class="save-state"><strong>更改后自动保存</strong><small>保存状态显示在各组件的配置面板中。</small></div><button class="button quiet" id="show-preview" type="button">查看完整画面</button></div>
+      </main>
+      <section id="panel-preview" class="context-panel" role="complementary" aria-label="画面预览与连接状态">
+        <div class="preview-heading"><div><h1>预览</h1><p>检查画面，预览场景与动效。</p></div><button class="button" id="open-output" type="button">打开画面</button></div>
+        <div class="context-heading"><h2>画面预览</h2><span id="preview-state">等待连接</span></div>
+        <div class="preview-controls">
+          <div class="preset-row"><label class="field">预设<select id="preset-picker"></select></label><button class="button primary" id="activate-preset" type="button">启用预设</button><button class="text-button" id="refresh-presets" type="button">刷新</button><button class="text-button" id="open-presets" type="button">打开目录</button></div>
+          <p id="preset-error" class="inline-error" role="status" hidden></p>
+          <div class="scene-row"><label class="field">预览场景<select id="preview-scene"></select></label><button class="button" id="replay" type="button">重播动效</button><div id="sidebar-controls"></div></div>
+        </div>
+        <div class="stage-shell"><div id="stage-viewport"><iframe id="preview-frame" title="场景独立预览" allow="autoplay" tabindex="-1"></iframe><div id="empty-preview"><strong>选择预设</strong><span>启用后显示独立预览画面。</span></div></div><div class="stage-footer"><span id="canvas-size"></span><button class="text-button" id="reload-preview" type="button">刷新预览</button></div></div>
+        <div class="output-address"><div><span>OBS 浏览器源地址</span><code id="output-url">等待 Host 连接</code></div><button class="button" id="copy-url" type="button">复制地址</button></div>
+        <div class="context-status"><h2>连接状态</h2><dl id="plugin-status"></dl></div>
+        <div class="context-help"><h2>独立预览</h2><p>预览切场景和重播动效只作用于当前页面。文字等持久化参数更改后会同步到直播画面。</p></div>
+      </section>
+    </div>
+  </div>
+  <div id="feedback" class="feedback" role="status" hidden></div><script type="module" src="/src/config.ts"></script>
+</body>
+</html>

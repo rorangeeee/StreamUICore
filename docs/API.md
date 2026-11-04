@@ -29,7 +29,7 @@ client.on('scene.enter', callback) 和 scene.leave 是播放器发送的页面�
 
 预览隔离主场景播放状态；持久化参数仍由相应场景、预设或插件共享。Host 控件可用预设共享参数控制覆盖效果，而不调用 selectScene。
 
-场景的 role 默认为 scene；overlay 描述仅用于配置，不进入主场景下拉，也不能作为 selectScene 的目标。覆盖层的组成和显隐由预设自行实现。选择“场景配置”中的条目只改变编辑对象，不改变预览或输出。
+场景的 role 默认为 scene；overlay 描述仅用于配置，不进入主场景下拉，也不能作为 selectScene 的目标。覆盖层的组成和显隐由预设自行实现。选择“设置 → 场景预设”中的条目只改变编辑对象，不改变预览或输出。
 
 ## 参数
 
@@ -50,7 +50,7 @@ addEventListener('pagehide', () => void save.flush().catch(() => {}));
 
 createAutoSave 合并约 300 ms 的连续输入，第二参数 true 立即提交。写入按顺序完成，失败保留待保存字段，下次 update 或 flush 可重试。不要在单项编辑时发送初始化时读到的完整快照。
 
-配置页从扩展的 settingsPage 加载 HTML，自动适应其内容高度。场景、预设和插件分别收到对应 ID。preset.sidebarPage 可提供侧栏控件，并获得当前配置页的 previewId；Core 不解释控件含义。
+配置页从扩展的 settingsPage 加载 HTML，自动适应其内容高度。场景、预设和插件分别收到对应 ID。preset.sidebarPage 可在预览页提供场景控件，并获得当前配置页的 previewId；Core 不解释控件含义。
 
 ## 插件能力
 

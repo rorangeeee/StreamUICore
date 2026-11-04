@@ -11,7 +11,7 @@
     const picker = document.getElementById('appearance-mode');
     if (picker) picker.value = mode;
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.content = theme === 'dark' ? '#1c1c1e' : '#f5f5f7';
+    if (meta) meta.content = theme === 'dark' ? '#151618' : '#f4f5f6';
   }
   apply();
   document.addEventListener('DOMContentLoaded', () => {

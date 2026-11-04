@@ -30,7 +30,9 @@ internal static class SelfTests
         await using var runtime = new HostRuntime(store, WebAssets.Resolve(root, null), Port(), Port());
         using var http = new HttpClient(); http.DefaultRequestHeaders.Add("X-StreamUI-Request", "1");
         await runtime.Start();
-        check((await http.GetStringAsync(runtime.ConfigUrl)).Contains("tab-scenes"), "configuration includes preview, scene and plugin pages");
+        var configuration = await http.GetStringAsync(runtime.ConfigUrl);
+        check(new[] { "tab-preview", "tab-settings", "scene-navigation", "plugin-navigation" }.All(configuration.Contains),
+            "configuration includes preview and grouped scene/plugin settings navigation");
         check((await http.GetStringAsync(runtime.ObsUrl + "sdk/streamui.js")).Contains("createClient"), "browser SDK is embedded");
         check((await http.GetAsync(runtime.ObsUrl + "api/settings")).StatusCode == HttpStatusCode.NotFound, "output pages cannot read plugin preferences");
         using var storage = JsonDocument.Parse(await http.GetStringAsync(runtime.ConfigUrl + "api/storage"));
