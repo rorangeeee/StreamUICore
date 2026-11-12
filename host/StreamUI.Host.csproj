@@ -7,6 +7,7 @@
   <ItemGroup>
     <ProjectReference Include="../contracts/StreamUI.Contracts.csproj"/>
     <Content Include="../dist/**/*" Link="wwwroot/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"/>
+    <Content Include="../sdk/native/*" Link="sdk/native/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true"/>
     <EmbeddedResource Include="$(IntermediateOutputPath)web-assets.zip" LogicalName="StreamUI.WebAssets.zip"/>
   </ItemGroup>
   <Target Name="BundleWebAssets" BeforeTargets="PrepareResources"><ZipDirectory SourceDirectory="../dist" DestinationFile="$(IntermediateOutputPath)web-assets.zip" Overwrite="true"/></Target>

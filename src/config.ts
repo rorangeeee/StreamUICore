@@ -16,10 +16,11 @@ let initializing: Promise<void> | null = null;
 let startupBusy = false;
 const sceneFrames = new Map<string, HTMLIFrameElement>();
 const pluginSubscriptions = new Map<string, () => void>();
-function failure(error: unknown): void {
-  $('feedback').textContent = (error as Error).message; $('feedback').hidden = false;
+function feedback(message: string): void {
+  $('feedback').textContent = message; $('feedback').hidden = false;
   clearTimeout(toastTimer); toastTimer = setTimeout(() => $('feedback').hidden = true, 5000);
 }
+function failure(error: unknown): void { feedback((error as Error).message); }
 function tab(name: string): void {
   document.querySelector<HTMLElement>('.console')!.dataset.tab = name;
   for (const button of document.querySelectorAll<HTMLButtonElement>('button[data-tab]')) {
@@ -161,8 +162,10 @@ function syncLive(value: PublicState): void {
       if (current) { current.topics.status = status; syncPluginStatus(live.state!); }
     }));
     const card = [...$('plugin-list').children].find(card => (card as HTMLElement).dataset.plugin === plugin.id)!;
+    const required = value.preset?.requiredPlugins.includes(plugin.id) ?? false;
     const toggle = card.querySelector<HTMLInputElement>('input[role=switch]')!;
-    toggle.checked = plugin.enabled; toggle.hidden = value.preset?.requiredPlugins.includes(plugin.id) ?? false; toggle.disabled = toggle.hidden;
+    toggle.checked = plugin.enabled; toggle.hidden = required; toggle.disabled = required;
+    card.querySelector('.card-heading h2')!.textContent = required ? '随预设启用' : '启用插件';
     const error = card.querySelector<HTMLElement>('.error')!; error.hidden = !plugin.error; error.textContent = plugin.error ?? '';
   }
   $('empty-plugins').hidden = value.plugins.length > 0;
@@ -194,6 +197,51 @@ async function catalog(refresh = false): Promise<void> {
   }));
   select('preset-picker').value = selected;
 }
+const installToggle = $<HTMLButtonElement>('toggle-install');
+const installRepository = $<HTMLInputElement>('install-repository');
+const installSubmit = $<HTMLButtonElement>('install-submit');
+const installStatus = $('install-status');
+function showInstall(open: boolean): void {
+  $('extension-install').hidden = !open;
+  installToggle.setAttribute('aria-expanded', String(open));
+  if (open) installRepository.focus();
+}
+installToggle.onclick = () => showInstall($('extension-install').hasAttribute('hidden'));
+$<HTMLFormElement>('install-form').onsubmit = async event => {
+  event.preventDefault();
+  if (installSubmit.disabled) return;
+  installSubmit.disabled = true;
+  installRepository.readOnly = true;
+  installStatus.removeAttribute('data-error');
+  installStatus.textContent = '正在拉取仓库并构建，可能需要几分钟。';
+  try {
+    const extension = await request<{ kind: 'preset' | 'plugin'; id: string; name: string }>(
+      '/api/extensions/install', 'POST', { repository: installRepository.value.trim() },
+    );
+    if (extension.kind === 'preset') {
+      await catalog();
+      select('preset-picker').value = extension.id;
+      tab('preview');
+      feedback('已安装「' + extension.name + '」。点击「启用预设」切换直播画面。');
+    } else {
+      section = 'plugin';
+      settingsPluginId = extension.id;
+      tab('settings');
+      renderSelection();
+      feedback('已安装「' + extension.name + '」。可在插件设置中启用。');
+    }
+    installRepository.value = '';
+    installStatus.textContent = '';
+    showInstall(false);
+    (extension.kind === 'preset' ? $('activate-preset') : installToggle).focus();
+  } catch (error) {
+    installStatus.dataset.error = 'true';
+    installStatus.textContent = (error as Error).message;
+  } finally {
+    installRepository.readOnly = false;
+    installSubmit.disabled = false;
+  }
+};
 select('preview-scene').onchange = () => void preview?.selectScene(select('preview-scene').value).catch(failure);
 $('general-settings').onclick = () => { section = 'general'; renderSelection(); };
 $('show-preview').onclick = () => tab('preview');

@@ -23,7 +23,7 @@ public record HostSettings
     public string? ActivePresetId { get; init; }
     public string[] EnabledPlugins { get; init; } = [];
     public static HostSettings Default => new();
-    public static bool IsId(string? value) => value is not null && Regex.IsMatch(value, "^[a-z0-9][a-z0-9_-]{0,63}$");
+    public static bool IsId(string? value) => value is not null && Regex.IsMatch(value, @"\A[a-z0-9][a-z0-9_-]{0,63}\z");
     public static void ValidatePath(string path, string prefix, string extension)
     {
         if (string.IsNullOrWhiteSpace(path) || !path.StartsWith(prefix + "/", StringComparison.Ordinal) || path.Contains('\\') || path.Contains(':')

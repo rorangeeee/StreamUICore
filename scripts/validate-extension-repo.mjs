@@ -19,13 +19,11 @@ export async function validateExtensionRepository(root, tracked) {
   if (manifest.sdkVersion !== (kind === 'preset' ? 2 : 1)) errors.push('Use browser SDK 2 for presets or native SDK 1 for plugins');
   if (!/^\d+\.\d+\.\d+$/.test(manifest.version ?? '')) errors.push('version must have three numeric components');
   if (kind === 'preset') {
-    for (const name of ['package.json', 'package-lock.json', 'vite.config.ts', 'tsconfig.json', 'source/index.html']) requireFile(name);
+    for (const name of ['plugins.txt', 'package.json', 'package-lock.json', 'vite.config.ts', 'tsconfig.json', 'source/index.html']) requireFile(name);
     if (manifest.build?.kind !== 'vite' || manifest.build?.output !== 'ui') errors.push('Preset build must declare kind=vite and output=ui');
     const pkg = files.has('package.json') ? await read('package.json') : {};
     if (!pkg.scripts?.build || !pkg.scripts?.check) errors.push('Preset package.json must provide build and check scripts');
     if (!files.has(manifest.defaults ?? '')) errors.push('Preset defaults must be tracked source JSON');
-    for (const dependency of manifest.plugins ?? [])
-      if (!dependency.repository?.startsWith('https://') || !dependency.ref) errors.push('Plugin dependencies must declare repository and ref');
   } else {
     for (const name of ['build.ps1', 'NuGet.Config']) requireFile(name);
     const project = manifest.build?.project;

@@ -24,7 +24,7 @@ public sealed class PresetCatalog
     public string Root { get; }
     public PresetInfo[] Items => items;
     public PresetCatalog(string root, string dataDirectory) { Root = Path.GetFullPath(root); data = dataDirectory; Reload(); }
-    private static bool Slug(string? id) => id is not null && Regex.IsMatch(id, "^[a-z0-9][a-z0-9-]{0,29}$");
+    private static bool Slug(string? id) => id is not null && Regex.IsMatch(id, @"\A[a-z0-9][a-z0-9-]{0,29}\z");
     public static string SceneId(string preset, string scene) => preset + "__" + scene;
     private static string Relative(string path)
     {
@@ -50,6 +50,46 @@ public sealed class PresetCatalog
         if (!value.EndsWith(extension, StringComparison.OrdinalIgnoreCase) || !File.Exists(Path.Combine(directory, value)))
             throw new ArgumentException("预设文件不存在或类型不匹配：" + value);
     }
+    internal static PresetManifest ReadManifest(string directory, string? expectedId = null)
+    {
+        var manifest = JsonSerializer.Deserialize<PresetManifest>(File.ReadAllText(Path.Combine(directory, "preset.json")), SettingsStore.Json)
+            ?? throw new ArgumentException("预设清单为空。");
+        if (manifest.FormatVersion != 1 || manifest.SdkVersion != 2) throw new ArgumentException("预设格式或浏览器 SDK 版本不兼容。");
+        if (!Slug(manifest.Id) || (expectedId is not null && manifest.Id != expectedId)
+            || string.IsNullOrWhiteSpace(manifest.Name) || !Version.TryParse(manifest.Version, out _)
+            || manifest.Scenes is null || manifest.Scenes.Length is < 1 or > 100 || manifest.SettingsPage is null || manifest.Defaults is null)
+            throw new ArgumentException("预设清单无效。");
+        var dependencies = manifest.Plugins ?? [];
+        if (dependencies.Any(p => p is null || !HostSettings.IsId(p.Id) || !Version.TryParse(p.MinimumVersion, out _))
+            || dependencies.Select(p => p.Id).Distinct().Count() != dependencies.Length) throw new ArgumentException("预设插件依赖无效。");
+        return manifest;
+    }
+    internal static void ValidateFiles(string directory, PresetManifest manifest)
+    {
+        CheckTree(directory);
+        if (manifest.Scenes.Any(s => s is null || !Slug(s.Id) || string.IsNullOrWhiteSpace(s.Name)
+            || s.Entry is null || s.Transition is null || s.SettingsPage is null || s.RuntimeGroup is null || s.View is null || s.Defaults is null))
+            throw new ArgumentException("预设场景无效。");
+        if (manifest.Scenes.Select(s => s.Id).Distinct().Count() != manifest.Scenes.Length || !manifest.Scenes.Any(s => s.Id == manifest.DefaultScene && s.Role == "scene"))
+            throw new ArgumentException("预设默认场景或场景 ID 无效。");
+        foreach (var scene in manifest.Scenes)
+        {
+            FileEntry(directory, scene.Entry, ".html"); FileEntry(directory, scene.Transition, ".js", true); FileEntry(directory, scene.SettingsPage, ".html", true);
+            FileEntry(directory, scene.Defaults, ".json", true);
+            if (scene.RuntimeGroup != "" && !Slug(scene.RuntimeGroup)) throw new ArgumentException("场景运行组无效。");
+        }
+        FileEntry(directory, manifest.SettingsPage, ".html", true); FileEntry(directory, manifest.Defaults, ".json", true);
+        FileEntry(directory, manifest.SidebarPage, ".html", true);
+        var defaults = manifest.Defaults == "" ? new JsonObject() : Object(File.ReadAllText(Path.Combine(directory, manifest.Defaults)));
+        var controls = manifest.TrayControls ?? [];
+        if (controls.Length > 16 || controls.Any(control => control is null || string.IsNullOrWhiteSpace(control.Label)
+            || control.Label.Length > 80 || string.IsNullOrWhiteSpace(control.Setting) || control.Setting.Length > 128
+            || !Regex.IsMatch(control.Setting, @"^[a-zA-Z_][a-zA-Z0-9_-]*(\.[a-zA-Z_][a-zA-Z0-9_-]*)*$")
+            || ToggleValue(defaults, control.Setting) is null)
+            || controls.Select(control => control.Setting).Distinct().Count() != controls.Length)
+            throw new ArgumentException("托盘开关必须绑定预设默认参数中的布尔值，且路径不能重复。");
+        ApplyManifest(HostSettings.Default, manifest).Validate();
+    }
     public void Reload()
     {
         manifests.Clear(); var found = new List<PresetInfo>();
@@ -59,41 +99,10 @@ public sealed class PresetCatalog
             if (!File.Exists(Path.Combine(directory, "preset.json"))) continue;
             try
             {
-                if (!Slug(id)) throw new ArgumentException("预设目录 ID 无效。");
-                CheckTree(directory);
-                var manifest = JsonSerializer.Deserialize<PresetManifest>(File.ReadAllText(Path.Combine(directory, "preset.json")), SettingsStore.Json)
-                    ?? throw new ArgumentException("预设清单为空。");
-                if (manifest.FormatVersion != 1 || manifest.SdkVersion != 2) throw new ArgumentException("预设格式或浏览器 SDK 版本不兼容。");
-                if (manifest.Id != id || string.IsNullOrWhiteSpace(manifest.Name) || !Version.TryParse(manifest.Version, out _)
-                    || manifest.Scenes is null || manifest.Scenes.Length is < 1 or > 100 || manifest.SettingsPage is null || manifest.Defaults is null)
-                    throw new ArgumentException("预设清单无效。");
-                if (manifest.Scenes.Any(s => s is null || !Slug(s.Id) || string.IsNullOrWhiteSpace(s.Name)
-                    || s.Entry is null || s.Transition is null || s.SettingsPage is null || s.RuntimeGroup is null || s.View is null || s.Defaults is null))
-                    throw new ArgumentException("预设场景无效。");
-                if (manifest.Scenes.Select(s => s.Id).Distinct().Count() != manifest.Scenes.Length || !manifest.Scenes.Any(s => s.Id == manifest.DefaultScene && s.Role == "scene"))
-                    throw new ArgumentException("预设默认场景或场景 ID 无效。");
-                foreach (var scene in manifest.Scenes)
-                {
-                    FileEntry(directory, scene.Entry, ".html"); FileEntry(directory, scene.Transition, ".js", true); FileEntry(directory, scene.SettingsPage, ".html", true);
-                    FileEntry(directory, scene.Defaults, ".json", true);
-                    if (scene.RuntimeGroup != "" && !Slug(scene.RuntimeGroup)) throw new ArgumentException("场景运行组无效。");
-                }
-                FileEntry(directory, manifest.SettingsPage, ".html", true); FileEntry(directory, manifest.Defaults, ".json", true);
-                FileEntry(directory, manifest.SidebarPage, ".html", true);
-                var defaults = manifest.Defaults == "" ? new JsonObject() : Object(File.ReadAllText(Path.Combine(directory, manifest.Defaults)));
-                var controls = manifest.TrayControls ?? [];
-                if (controls.Length > 16 || controls.Any(control => control is null || string.IsNullOrWhiteSpace(control.Label)
-                    || control.Label.Length > 80 || string.IsNullOrWhiteSpace(control.Setting) || control.Setting.Length > 128
-                    || !Regex.IsMatch(control.Setting, @"^[a-zA-Z_][a-zA-Z0-9_-]*(\.[a-zA-Z_][a-zA-Z0-9_-]*)*$")
-                    || ToggleValue(defaults, control.Setting) is null)
-                    || controls.Select(control => control.Setting).Distinct().Count() != controls.Length)
-                    throw new ArgumentException("托盘开关必须绑定预设默认参数中的布尔值，且路径不能重复。");
-                var dependencies = manifest.Plugins ?? [];
-                if (dependencies.Any(p => p is null || !HostSettings.IsId(p.Id) || !Version.TryParse(p.MinimumVersion, out _))
-                    || dependencies.Select(p => p.Id).Distinct().Count() != dependencies.Length) throw new ArgumentException("预设插件依赖无效。");
-                var candidate = ApplyManifest(HostSettings.Default, manifest); candidate.Validate();
+                var manifest = ReadManifest(directory, id);
+                ValidateFiles(directory, manifest);
                 manifests[id] = manifest;
-                found.Add(new(id, manifest.Name, manifest.Version, manifest.Description ?? "", manifest.Scenes.Length, dependencies, true, null));
+                found.Add(new(id, manifest.Name, manifest.Version, manifest.Description ?? "", manifest.Scenes.Length, manifest.Plugins ?? [], true, null));
             }
             catch (Exception error) when (error is JsonException or ArgumentException or IOException or UnauthorizedAccessException)
             { found.Add(new(id, id, "", "", 0, [], false, error.Message)); }
@@ -111,16 +120,17 @@ public sealed class PresetCatalog
     }
     public string[] Required(string? id) => id is null || !manifests.TryGetValue(id, out var manifest) ? [] : (manifest.Plugins ?? []).Where(p => p.Required).Select(p => p.Id).ToArray();
     public string[] EffectivePlugins(HostSettings settings) => settings.EnabledPlugins.Concat(Required(settings.ActivePresetId)).Distinct().ToArray();
+    internal static void RequirePluginVersion(PresetDependency dependency, string? installedVersion)
+    {
+        if (!Version.TryParse(installedVersion, out var version) || version < Version.Parse(dependency.MinimumVersion))
+            throw new ArgumentException($"预设需要插件 {dependency.Id} {dependency.MinimumVersion} 或更高版本。");
+    }
     public HostSettings Apply(HostSettings current, string? id, PluginInfo[] plugins)
     {
         if (id is null) return current with { ActivePresetId = null, Scenes = [], SelectedSceneId = null };
         var manifest = Get(id);
         foreach (var dependency in (manifest.Plugins ?? []).Where(p => p.Required))
-        {
-            var installed = plugins.FirstOrDefault(p => p.Id == dependency.Id);
-            if (installed is null || !Version.TryParse(installed.Version, out var version) || version < Version.Parse(dependency.MinimumVersion))
-                throw new ArgumentException($"预设需要插件 {dependency.Id} {dependency.MinimumVersion} 或更高版本。");
-        }
+            RequirePluginVersion(dependency, plugins.FirstOrDefault(p => p.Id == dependency.Id)?.Version);
         return ApplyManifest(current, manifest);
     }
     private static HostSettings ApplyManifest(HostSettings current, PresetManifest manifest) => current with

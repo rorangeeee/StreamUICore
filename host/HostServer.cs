@@ -60,6 +60,7 @@ public sealed class HostServer : IAsyncDisposable
         content = new(store.DirectoryPath, store.PluginsDirectory);
         Directory.CreateDirectory(store.PresetsDirectory);
         presets = new(store.PresetsDirectory, store.DirectoryPath); plugins = new(content);
+        var installer = new ExtensionInstaller(store, mutations);
         var builder = WebApplication.CreateSlimBuilder(new WebApplicationOptions { Args = [], ContentRootPath = AppContext.BaseDirectory, WebRootPath = webRoot });
         builder.Logging.ClearProviders();
         builder.WebHost.ConfigureKestrel(options => {
@@ -123,6 +124,16 @@ public sealed class HostServer : IAsyncDisposable
             } finally { mutations.Release(); }
         });
         app.MapGet("/api/presets", () => Results.Json(presets.Items, SettingsStore.Json));
+        app.MapPost("/api/extensions/install", async (HttpRequest request) => {
+            var install = await request.ReadFromJsonAsync<ExtensionInstallRequest>() ?? throw new ArgumentException("请填写 Git 仓库地址。");
+            using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(request.HttpContext.RequestAborted, app.Lifetime.ApplicationStopping);
+            var result = await installer.Install(install.Repository, async extension => {
+                if (extension.Kind == "preset") presets.Reload();
+                await plugins.Discover([]);
+                Broadcast();
+            }, cancellation.Token);
+            return Results.Json(result, SettingsStore.Json);
+        });
         app.MapPost("/api/presets/reload", async () => {
             await mutations.WaitAsync();
             try { presets.Reload(); return Results.Json(presets.Items, SettingsStore.Json); }
@@ -230,5 +241,6 @@ public sealed class HostServer : IAsyncDisposable
     }
     private record SelectSceneRequest(string Id, bool Animate = true, string? Cue = null, long? StartedAt = null);
     private record PresetRequest(string? Id);
+    private record ExtensionInstallRequest(string? Repository);
     private record StartupRequest(bool Enabled);
 }

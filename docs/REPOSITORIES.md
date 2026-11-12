@@ -1,6 +1,6 @@
 # 扩展源码仓库约定 v1
 
-官方和第三方扩展都以独立 Git 源码仓库分发。仓库必须包含可编辑源码、构建配置、依赖锁定文件和构建说明；不要求用户获取预编译包，不提交构建产物。构建由用户或其 agent 明确执行，Core 不自动执行下载仓库中的构建脚本。
+官方和第三方扩展都以独立 Git 源码仓库分发。仓库必须包含可编辑源码、构建配置、依赖锁定文件和构建说明。构建产物留在本机。配置页的「从 Git 安装」拉取默认分支，按仓库类型运行构建命令。
 
 安装目录就是工作目录。预设位于 EXE 旁 `presets/<id>/`，插件位于 `plugins/<id>/`，也可分别通过 `--presets-dir`、`--plugins-dir` 指定。目录名须与清单 id 一致；自定义修改直接在该仓库中完成。构建产物留在工作目录，加入 `.gitignore`。
 
@@ -9,6 +9,7 @@
 ```text
 latenite/
   preset.json           # formatVersion=1、浏览器 sdkVersion=2、版本、场景及插件依赖
+  plugins.txt           # 每行一个插件 Git 仓库地址
   defaults.json         # 作者默认参数，不含用户连接凭据
   settings/             # 各场景自行提供的参数页
   sidebar.html          # 可选，预设的侧栏控件
@@ -21,7 +22,7 @@ latenite/
   ui/                   # 本地构建输出，Git 忽略
 ```
 
-`preset.json` 声明 `"build": {"kind":"vite","output":"ui"}`。场景 entry 指向构建后的 `ui/` 文件；源码仓库刚下载、尚未构建时，Core 可以将它显示为不可用。插件依赖须声明 `repository` 和 `ref`，用于用户和 agent 确定源码来源与版本；Core 当前不自动下载或构建依赖。
+`preset.json` 声明 `"build": {"kind":"vite","output":"ui"}`。场景 entry 指向构建后的 `ui/` 文件。安装地址写在 `plugins.txt` 中，每行一个 Git 仓库地址。列全必需插件的仓库地址，也可以列入希望一起安装的可选插件。没有依赖时提交空文件。Core 会忽略空行。插件 ID、最低版本和是否必需由 `preset.json` 的 `plugins` 声明。
 
 构建命令：`npm ci`、`npm run build`。仅修改 `settings.html`、默认参数或清单时不必编译前端；修改 source 后必须重新构建并刷新预览/OBS，清单结构变更后刷新列表并重新应用预设。
 

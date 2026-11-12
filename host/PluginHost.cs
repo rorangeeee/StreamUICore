@@ -72,22 +72,27 @@ public sealed class PluginHost : IAsyncDisposable
             || value.Split('/').Any(s => s is "" or "." or "..") || !value.EndsWith(extension, StringComparison.OrdinalIgnoreCase))
             throw new ArgumentException("插件文件路径无效。");
     }
-    public async Task Reload(string[] enabled)
+    internal static async Task<PluginManifest> ReadManifest(string directory, string? expectedId = null, CancellationToken cancellation = default)
     {
-        await StopAll();
-        entries.Clear();
+        var manifest = JsonSerializer.Deserialize<PluginManifest>(await File.ReadAllTextAsync(Path.Combine(directory, "plugin.json"), cancellation), SettingsStore.Json)
+            ?? throw new ArgumentException("插件清单为空。");
+        if (!HostSettings.IsId(manifest.Id) || (expectedId is not null && manifest.Id != expectedId)
+            || string.IsNullOrWhiteSpace(manifest.Name) || string.IsNullOrWhiteSpace(manifest.Version)
+            || string.IsNullOrWhiteSpace(manifest.Type) || manifest.Capabilities is null || manifest.SettingsPage is null
+            || manifest.Capabilities.Any(c => string.IsNullOrWhiteSpace(c) || c.Length > 100)) throw new ArgumentException("插件清单无效。");
+        ValidateFile(manifest.Assembly, ".dll");
+        if (manifest.SettingsPage.Length > 0) ValidateFile(manifest.SettingsPage, ".html");
+        return manifest;
+    }
+    internal async Task Discover(string[] enabled)
+    {
         foreach (var directory in Directory.EnumerateDirectories(content.Plugins))
         {
             var id = Path.GetFileName(directory);
-            if (!HostSettings.IsId(id) || !File.Exists(Path.Combine(directory, "plugin.json"))) continue;
+            if (!HostSettings.IsId(id) || entries.ContainsKey(id) || !File.Exists(Path.Combine(directory, "plugin.json"))) continue;
             try
             {
-                var manifest = JsonSerializer.Deserialize<PluginManifest>(await File.ReadAllTextAsync(Path.Combine(directory, "plugin.json")), SettingsStore.Json)
-                    ?? throw new ArgumentException("插件清单为空。");
-                if (manifest.Id != id || string.IsNullOrWhiteSpace(manifest.Name) || string.IsNullOrWhiteSpace(manifest.Version)
-                    || string.IsNullOrWhiteSpace(manifest.Type) || manifest.Capabilities is null || manifest.SettingsPage is null || manifest.Capabilities.Any(c => string.IsNullOrWhiteSpace(c) || c.Length > 100)) throw new ArgumentException("插件清单无效。");
-                ValidateFile(manifest.Assembly, ".dll");
-                if (manifest.SettingsPage.Length > 0) ValidateFile(manifest.SettingsPage, ".html");
+                var manifest = await ReadManifest(directory, id);
                 entries[id] = new(manifest) { Enabled = enabled.Contains(id) };
                 var legacy = Path.Combine(content.Root, "core-settings.v1.json");
                 if (!string.IsNullOrEmpty(manifest.LegacySettingsKey) && File.Exists(legacy)
@@ -96,11 +101,17 @@ public sealed class PluginHost : IAsyncDisposable
                     if (prior.RootElement.TryGetProperty(manifest.LegacySettingsKey, out var values)) await content.SaveSettings("plugin", id, values);
                 }
             }
-            catch (Exception error) when (error is JsonException or ArgumentException or IOException)
+            catch (Exception error) when (error is JsonException or ArgumentException or IOException or UnauthorizedAccessException)
             {
                 entries[id] = new(new(id, id, "", "", "", [])) { Enabled = enabled.Contains(id), State = "error", Error = error.Message };
             }
         }
+    }
+    public async Task Reload(string[] enabled)
+    {
+        await StopAll();
+        entries.Clear();
+        await Discover(enabled);
         foreach (var entry in entries.Values.Where(e => e.Enabled && e.Error is null)) await Start(entry);
         Changed?.Invoke();
     }

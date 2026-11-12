@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "flat-type-hierarchy",
+        "value": "*",
+        "files": [
+          "config.html"
+        ],
+        "createdAt": "2026-11-12T08:39:30.249Z",
+        "reason": "Agent: the HTML scan misses src/config.css imported by src/config.ts. Rendered page headings are 28px on desktop and 24px on narrow screens, with 13px supporting text."
+      }
+    ]
+  }
+}

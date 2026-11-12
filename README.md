@@ -13,23 +13,13 @@ npm run host:package
 
 生成 StreamUI Core.exe 和独立原生 SDK（sdk/native，major 1）。配置页 http://127.0.0.1:5281/，输出 http://127.0.0.1:5280/。浏览器 SDK 为 2。EXE 不含预设或插件。
 
-在 Core 目录安装源码：
+## 从 Git 安装
 
-~~~powershell
-git clone https://github.com/rorangeeee/StreamUI-Plugin-DesktopAudio.git plugins/desktop-audio
-git clone https://github.com/rorangeeee/StreamUI-Plugin-SystemMedia.git plugins/system-media
-git clone https://github.com/rorangeeee/StreamUI-Plugin-ObsScenes.git plugins/obs-scenes
-git clone https://github.com/rorangeeee/StreamUI-Plugin-Laplace.git plugins/laplace
-git clone https://github.com/rorangeeee/StreamUI-Preset-Latenite.git presets/latenite
-powershell.exe -NoProfile -File plugins/desktop-audio/build.ps1 -SdkPath sdk/native
-powershell.exe -NoProfile -File plugins/system-media/build.ps1 -SdkPath sdk/native
-powershell.exe -NoProfile -File plugins/obs-scenes/build.ps1 -SdkPath sdk/native
-powershell.exe -NoProfile -File plugins/laplace/build.ps1 -SdkPath sdk/native
-npm --prefix presets/latenite ci
-npm --prefix presets/latenite run build
-~~~
+安装扩展需要 Git for Windows、Node.js（含 npm）和 .NET 10 SDK。安装这些工具后重启 Core，让它读取更新后的 PATH。Core 安装包提供插件编译用的原生 SDK。
 
-启动 Core，选择并启用 LATENITE。字体由本机提供，具体要求见预设 README。
+在配置页点击「从 Git 安装」，粘贴预设或插件的仓库地址，再点「安装」。Core 会拉取仓库的默认分支并运行构建脚本。安装预设时，Core 会读取仓库根目录的 `plugins.txt`，一并安装每行地址指向的插件。安装同一来源的预设或插件时会复用本机已有的构建产物。
+
+在预览区选择已安装的预设，点击「启用预设」。清单里标记为必需的插件随预设启动。单独安装的插件可在「设置 → 插件设置」里启用和配置。
 
 ## 配置与预览
 
@@ -45,7 +35,7 @@ OBS 地址和密码位于 OBS 场景联动插件。Event Bridge 地址、端口�
 
 ## 数据与更新
 
-插件直接加载 plugins/<id>/，预设直接读取 presets/<id>/，安装仓库就是编辑目录。仓库包含源码和构建配置，产物由用户或 agent 本地生成，不提交 Git。更新原生插件前退出 Core，合并 Git 更新、构建后再启动。参数与持久化数据保存在独立用户目录。
+插件直接加载 plugins/<id>/，预设直接读取 presets/<id>/，安装仓库就是编辑目录。构建产物保留在本机。更新原生插件前退出 Core，合并 Git 更新、构建后再启动。参数与持久化数据保存在独立用户目录。
 
 默认数据目录为 %LOCALAPPDATA%/StreamUICore；EXE 旁有 .local/core-data 时使用它。可用 --data-dir、--presets-dir、--plugins-dir、--obs-port、--config-port 指定隔离实例。
 
@@ -63,6 +53,7 @@ npm --prefix presets/latenite run migrate -- <Core数据目录>
 npm test
 npm run host:test
 node tests/presets-integration.mjs 'StreamUI Core.exe'
+node tests/extension-installation-integration.mjs
 npm run extensions:check -- plugins/desktop-audio plugins/system-media plugins/obs-scenes plugins/laplace presets/latenite
 ~~~
 

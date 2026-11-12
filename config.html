@@ -16,8 +16,23 @@
           <button id="tab-settings" type="button" role="tab" aria-selected="true" aria-controls="panel-settings" data-tab="settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="9" cy="18" r="2"/></svg>设置</button>
         </nav>
       </div>
-      <div class="host-connection"><span class="status-dot" id="connection-dot"></span><span id="connection-status" role="status">正在连接 Host</span></div>
+      <div class="header-actions">
+        <div class="host-connection"><span class="status-dot" id="connection-dot"></span><span id="connection-status" role="status">正在连接 Host</span></div>
+        <button class="button" id="toggle-install" type="button" aria-controls="extension-install" aria-expanded="false">从 Git 安装</button>
+      </div>
     </header>
+    <section class="extension-install" id="extension-install" aria-label="从 Git 安装" hidden>
+      <form id="install-form">
+        <div class="install-fields">
+          <label class="field">Git 仓库地址
+            <input id="install-repository" type="text" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://github.com/…" aria-describedby="install-hint" required>
+          </label>
+          <button class="button primary" id="install-submit" type="submit">安装</button>
+        </div>
+        <p class="help" id="install-hint">安装会运行仓库及其依赖的构建脚本。</p>
+        <p id="install-status" role="status"></p>
+      </form>
+    </section>
     <div id="service-strip" class="service-strip" aria-label="插件连接状态"></div>
     <div class="connection-notice" id="connection-notice" role="status">正在连接 Host，载入配置后即可编辑。</div>
     <div class="workspace">

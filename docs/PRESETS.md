@@ -1,6 +1,6 @@
 # 外置预设格式 v1 / 浏览器 SDK 2
 
-预设以独立源码仓库分发，构建后由 Core 从 presets/<id>/preset.json 发现。Core 不携带场景，也不自动执行扩展构建脚本。
+预设以独立源码仓库分发。用户可在 Core 配置页使用「从 Git 安装」，构建结果保存在 presets/<id>/。仓库根目录必须包含 plugins.txt，每行填写一个插件的 Git 仓库地址。没有插件依赖时提交空文件。
 
 ~~~json
 {
@@ -42,13 +42,13 @@ label 是菜单文字，setting 是共享预设参数的点分路径；该路径
 
 ## 能力组件
 
-plugins 声明独立能力依赖，例如：
+plugins 声明启用时检查的插件 ID、最低版本和必需状态，例如
 
 ~~~json
-{"id":"obs-scenes","minimumVersion":"1.0.0","required":true,"repository":"https://github.com/rorangeeee/StreamUI-Plugin-ObsScenes.git","ref":"main"}
+{"id":"obs-scenes","minimumVersion":"1.0.0","required":true}
 ~~~
 
-启用时检查并启动必需插件，扫描不会启动代码。OBS 插件只提供连接和事件。LATENITE 在各场景参数中声明 obsSceneName，其组件监听 plugin.obs-scenes.scene-changed；只有非空且匹配的场景才切换并播放动效。未匹配的事件不改变输出，也不播放动效。预览组件不执行实际 OBS 联动。
+在 plugins.txt 中列出必需插件的 Git 仓库地址。Core 安装时读取这个文件，启用预设时检查版本并启动必需插件。OBS 插件提供连接和事件。LATENITE 在各场景参数中声明 obsSceneName，其组件监听 plugin.obs-scenes.scene-changed；只有非空且匹配的场景才切换并播放动效。未匹配的事件不改变输出，也不播放动效。预览组件不执行实际 OBS 联动。
 
 其他组件按需订阅 laplace、desktop-audio、system-media 数据。连接参数保存在插件 scope，视觉与业务逻辑不进入 Core。
 
